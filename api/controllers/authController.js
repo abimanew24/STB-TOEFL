@@ -1,0 +1,186 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import pool from '../database.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'stbtoefl_jwt_secret_key_2026_secure';
+
+/**
+ * Login Mahasiswa Peserta Ujian (NIM + Token Ujian + Nama Lengkap)
+ */
+export async function loginStudent(req, res) {
+  try {
+    const { nomor_induk, nama_lengkap, email, token_ujian } = req.body;
+
+    if (!nomor_induk || !nama_lengkap || !token_ujian) {
+      return res.status(400).json({
+        error: 'Data Tidak Lengkap',
+        message: 'NIM, Nama Lengkap, dan Token Ujian wajib diisi.'
+      });
+    }
+
+    // 1. Periksa ketersediaan dan status aktif token sesi ujian
+    const [sessions] = await pool.query(
+      `SELECT * FROM sesi_ujian WHERE UPPER(token) = UPPER(?) LIMIT 1`,
+      [token_ujian.trim()]
+    );
+
+    if (sessions.length === 0) {
+      return res.status(404).json({
+        error: 'Token Tidak Ditemukan',
+        message: 'Token ujian yang Anda masukkan tidak valid.'
+      });
+    }
+
+    const session = sessions[0];
+    if (!session.status_aktif) {
+      return res.status(403).json({
+        error: 'Sesi Belum Aktif',
+        message: 'Sesi ujian belum diaktifkan oleh pengawas laboratorium.'
+      });
+    }
+
+    // 2. Daftarkan atau dapatkan akun mahasiswa di tabel `pengguna`
+    const studentEmail = email ? email.trim() : `${nomor_induk.trim()}@student.stbtoefl.ac.id`;
+    
+    let [users] = await pool.query(
+      `SELECT * FROM pengguna WHERE nomor_induk = ? LIMIT 1`,
+      [nomor_induk.trim()]
+    );
+
+    let userId;
+    if (users.length === 0) {
+      const defaultPassHash = await bcrypt.hash('MahasiswaTOEFL2026', 10);
+      const [insertResult] = await pool.query(
+        `INSERT INTO pengguna (nomor_induk, nama_lengkap, email, kata_sandi, peran) VALUES (?, ?, ?, ?, 'mahasiswa')`,
+        [nomor_induk.trim(), nama_lengkap.trim(), studentEmail, defaultPassHash]
+      );
+      userId = insertResult.insertId;
+    } else {
+      userId = users[0].id;
+      // Update nama / email jika ada pembaruan
+      await pool.query(
+        `UPDATE pengguna SET nama_lengkap = ?, email = ? WHERE id = ?`,
+        [nama_lengkap.trim(), studentEmail, userId]
+      );
+    }
+
+    // 3. Penjaga Ujian Ganda: Periksa apakah mahasiswa sudah pernah menyelesaikan ujian pada sesi ini
+    const [existingResults] = await pool.query(
+      `SELECT * FROM hasil_ujian WHERE pengguna_id = ? AND sesi_id = ? LIMIT 1`,
+      [userId, session.id]
+    );
+
+    if (existingResults.length > 0) {
+      return res.status(403).json({
+        error: 'Ujian Sudah Selesai',
+        message: 'Anda telah menyelesaikan ujian pada sesi ini. Nilai Anda sudah terekam.',
+        result: existingResults[0]
+      });
+    }
+
+    // 4. Generate JWT Token untuk Mahasiswa
+    const payload = {
+      id: userId,
+      nomor_induk: nomor_induk.trim(),
+      nama_lengkap: nama_lengkap.trim(),
+      email: studentEmail,
+      peran: 'mahasiswa',
+      sesi_id: session.id,
+      nama_sesi: session.nama_sesi
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '6h' });
+
+    return res.json({
+      message: 'Login Ujian Mahasiswa Berhasil',
+      token,
+      student: payload,
+      session: {
+        id: session.id,
+        nama_sesi: session.nama_sesi,
+        status_aktif: Boolean(session.status_aktif)
+      }
+    });
+  } catch (error) {
+    console.error('[AUTH STUDENT ERROR]', error);
+    return res.status(500).json({ error: 'Server Error', message: error.message });
+  }
+}
+
+/**
+ * Login Dosen Pengawas / Admin (NIP & Password Bcrypt)
+ */
+export async function loginProctor(req, res) {
+  try {
+    const { nomor_induk, kata_sandi } = req.body;
+
+    if (!nomor_induk || !kata_sandi) {
+      return res.status(400).json({
+        error: 'Data Tidak Lengkap',
+        message: 'NIP Pengawas dan Kata Sandi wajib diisi.'
+      });
+    }
+
+    // Cari pengguna pengawas
+    const [users] = await pool.query(
+      `SELECT * FROM pengguna WHERE nomor_induk = ? AND peran = 'pengawas' LIMIT 1`,
+      [nomor_induk.trim()]
+    );
+
+    // Jika belum ada akun pengawas sama sekali di DB, buat akun pengawas default (Seed Auto-Admin)
+    if (users.length === 0) {
+      const [allProctors] = await pool.query(`SELECT COUNT(*) as count FROM pengguna WHERE peran = 'pengawas'`);
+      if (allProctors[0].count === 0 && (nomor_induk === 'admin' || nomor_induk === '199001012026011001')) {
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        const [insertRes] = await pool.query(
+          `INSERT INTO pengguna (nomor_induk, nama_lengkap, email, kata_sandi, peran) 
+           VALUES (?, 'Dosen Pengawas Utama', 'proctor@stbtoefl.ac.id', ?, 'pengawas')`,
+          [nomor_induk.trim(), hashedPassword]
+        );
+        users.push({
+          id: insertRes.insertId,
+          nomor_induk: nomor_induk.trim(),
+          nama_lengkap: 'Dosen Pengawas Utama',
+          email: 'proctor@stbtoefl.ac.id',
+          kata_sandi: hashedPassword,
+          peran: 'pengawas'
+        });
+      } else {
+        return res.status(401).json({
+          error: 'Autentikasi Gagal',
+          message: 'NIP Pengawas tidak terdaftar.'
+        });
+      }
+    }
+
+    const proctor = users[0];
+    const isPasswordValid = await bcrypt.compare(kata_sandi, proctor.kata_sandi);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        error: 'Autentikasi Gagal',
+        message: 'Kata sandi yang Anda masukkan salah.'
+      });
+    }
+
+    // Generate JWT Token untuk Pengawas
+    const payload = {
+      id: proctor.id,
+      nomor_induk: proctor.nomor_induk,
+      nama_lengkap: proctor.nama_lengkap,
+      email: proctor.email,
+      peran: 'pengawas'
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '12h' });
+
+    return res.json({
+      message: 'Login Portal Pengawas Berhasil',
+      token,
+      proctor: payload
+    });
+  } catch (error) {
+    console.error('[AUTH PROCTOR ERROR]', error);
+    return res.status(500).json({ error: 'Server Error', message: error.message });
+  }
+}
