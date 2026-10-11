@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  BookOpen, Plus, Upload, Volume2, Edit2, Trash2, 
-  PlayCircle, PauseCircle, CheckCircle2, Server, Clock, FileText, Download
+  BookOpen, Plus, Upload, Volume2, VolumeX, Edit2, Trash2, 
+  PlayCircle, PauseCircle, CheckCircle2, Server, Clock, FileText, Download,
+  Music, Check, RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { SidebarProctor } from '../../components/common/SidebarProctor';
@@ -112,7 +113,68 @@ export const QuestionBank: React.FC = () => {
   const [uploadedAudioPath, setUploadedAudioPath] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
+  // Media Library Modal States
+  const [mediaLibraryModalOpen, setMediaLibraryModalOpen] = useState(false);
+  const [audioLibraryFiles, setAudioLibraryFiles] = useState<any[]>([]);
+  const [loadingAudioLibrary, setLoadingAudioLibrary] = useState(false);
+  const [uploadingLibraryAudio, setUploadingLibraryAudio] = useState(false);
+  const [playingModalUrl, setPlayingModalUrl] = useState<string | null>(null);
+  const modalAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const libraryFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Batch Selection & Deletion States
+  const [selectedQIds, setSelectedQIds] = useState<number[]>([]);
+  const [deletingBatch, setDeletingBatch] = useState(false);
+  const [confirmBatchModalOpen, setConfirmBatchModalOpen] = useState(false);
+  const [confirmDeleteAllModalOpen, setConfirmDeleteAllModalOpen] = useState(false);
+
+  // Individual Question Audio Playback State
+  const [playingQuestionId, setPlayingQuestionId] = useState<number | null>(null);
+  const questionAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const toggleQuestionAudio = (q: any) => {
+    const hasAudio = !!(q.audio_url || q.berkas_audio);
+    if (!hasAudio) {
+      alert(`Soal #${q.id} belum terhubung dengan berkas audio.`);
+      return;
+    }
+
+    const targetSrc = q.audio_url || (q.berkas_audio.startsWith('http') || q.berkas_audio.startsWith('/') ? q.berkas_audio : `/static/audio/${q.berkas_audio}`);
+    const fullUrl = targetSrc.startsWith('http') ? targetSrc : ((import.meta.env.VITE_API_URL || '') + targetSrc);
+
+    if (playingQuestionId === q.id) {
+      questionAudioRef.current?.pause();
+      setPlayingQuestionId(null);
+    } else {
+      if (questionAudioRef.current) {
+        questionAudioRef.current.pause();
+      }
+      const audio = new Audio(fullUrl);
+      audio.onended = () => setPlayingQuestionId(null);
+      audio.onerror = () => {
+        alert(`Gagal memutar audio (${q.audio_filename || q.berkas_audio}). File audio belum tersedia di server.`);
+        setPlayingQuestionId(null);
+      };
+      questionAudioRef.current = audio;
+      audio.play().catch(err => {
+        console.error('Play audio error:', err);
+        alert('Gagal memutar audio. Pastikan berkas audio telah diunggah ke server.');
+        setPlayingQuestionId(null);
+      });
+      setPlayingQuestionId(q.id);
+    }
+  };
+
+  // Reset selection and audio on section or passage change
+  useEffect(() => {
+    setSelectedQIds([]);
+    if (questionAudioRef.current) {
+      questionAudioRef.current.pause();
+    }
+    setPlayingQuestionId(null);
+  }, [selectedSection, activePassageId]);
 
   const fetchQuestions = async () => {
     setLoading(true);
@@ -191,27 +253,96 @@ export const QuestionBank: React.FC = () => {
     }
   };
 
-  const handleDeleteMasterAudio = async (id: number) => {
-    if (!window.confirm('Yakin hapus master audio ini?')) return;
+  const handleDeleteMasterAudio = async () => {
+    if (!window.confirm('Yakin ingin melepas Master Audio Listening Section 1?')) return;
     try {
-      const q1 = questions.find(q => q.id === id);
-      if (q1) {
-        await api.put(`/questions/${id}`, {
-          nomor_section: q1.nomor_section,
-          wacana_id: q1.wacana_id,
-          pertanyaan: q1.pertanyaan,
-          pilihan_a: q1.pilihan_a,
-          pilihan_b: q1.pilihan_b,
-          pilihan_c: q1.pilihan_c,
-          pilihan_d: q1.pilihan_d,
-          jawaban_benar: q1.jawaban_benar,
-          berkas_audio: null
-        });
-        fetchQuestions();
-      }
+      await api.put('/questions/master-audio', { berkas_audio: null });
+      fetchQuestions();
     } catch (err) {
-      alert('Gagal menghapus audio');
+      alert('Gagal melepas master audio');
     }
+  };
+
+  const fetchAudioLibrary = async () => {
+    setLoadingAudioLibrary(true);
+    try {
+      const res = await api.get('/questions/audio');
+      setAudioLibraryFiles(res.data);
+    } catch (err) {
+      console.error('Gagal memuat pustaka audio', err);
+    } finally {
+      setLoadingAudioLibrary(false);
+    }
+  };
+
+  const handleSelectMasterAudio = async (audioUrl: string) => {
+    try {
+      await api.put('/questions/master-audio', { berkas_audio: audioUrl });
+      closeMediaLibraryModal();
+      fetchQuestions();
+    } catch (err) {
+      alert('Gagal menyetel Master Audio.');
+    }
+  };
+
+  const handleUploadLibraryAudio = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/') && !file.name.endsWith('.mp3')) {
+      alert('Hanya file audio MP3 yang diperbolehkan.');
+      return;
+    }
+
+    setUploadingLibraryAudio(true);
+    const formData = new FormData();
+    formData.append('audio', file);
+    try {
+      await api.post('/questions/upload-audio', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      fetchAudioLibrary();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Gagal mengunggah audio.');
+    } finally {
+      setUploadingLibraryAudio(false);
+      if (libraryFileInputRef.current) libraryFileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteAudioFromLibrary = async (filename: string) => {
+    if (!window.confirm(`Hapus berkas audio "${filename}" dari server?`)) return;
+    try {
+      await api.delete(`/questions/audio/${encodeURIComponent(filename)}?force=true`);
+      fetchAudioLibrary();
+      fetchQuestions();
+    } catch (err) {
+      alert('Gagal menghapus file audio.');
+    }
+  };
+
+  const toggleModalPlay = (url: string) => {
+    if (playingModalUrl === url) {
+      modalAudioRef.current?.pause();
+      setPlayingModalUrl(null);
+    } else {
+      if (modalAudioRef.current) {
+        modalAudioRef.current.pause();
+      }
+      const audioSrc = url.startsWith('http') ? url : ((import.meta.env.VITE_API_URL || '') + url);
+      const newAudio = new Audio(audioSrc);
+      newAudio.play().catch(e => console.error(e));
+      newAudio.onended = () => setPlayingModalUrl(null);
+      modalAudioRef.current = newAudio;
+      setPlayingModalUrl(url);
+    }
+  };
+
+  const closeMediaLibraryModal = () => {
+    if (modalAudioRef.current) {
+      modalAudioRef.current.pause();
+    }
+    setPlayingModalUrl(null);
+    setMediaLibraryModalOpen(false);
   };
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,8 +393,130 @@ export const QuestionBank: React.FC = () => {
     if (!window.confirm('Yakin hapus soal ini?')) return;
     try {
       await api.delete(`/questions/${id}`);
+      setSelectedQIds(prev => prev.filter(x => x !== id));
       fetchQuestions();
     } catch (err) { alert('Gagal menghapus soal'); }
+  };
+
+  const visibleQuestions = selectedSection === 3 
+    ? questions.filter(q => q.wacana_id === activePassageId)
+    : questions;
+
+  const isAllSelected = visibleQuestions.length > 0 && visibleQuestions.every(q => selectedQIds.includes(q.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      const visibleIdSet = new Set(visibleQuestions.map(q => q.id));
+      setSelectedQIds(prev => prev.filter(id => !visibleIdSet.has(id)));
+    } else {
+      const visibleIds = visibleQuestions.map(q => q.id);
+      setSelectedQIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const toggleSelectQuestion = (id: number) => {
+    setSelectedQIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedQIds.length === 0) return;
+    setDeletingBatch(true);
+    try {
+      const res = await api.post('/questions/batch-delete', { ids: selectedQIds });
+      alert(res.data?.message || `Berhasil menghapus ${selectedQIds.length} butir soal.`);
+      setSelectedQIds([]);
+      setConfirmBatchModalOpen(false);
+      fetchQuestions();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Gagal menghapus butir soal terpilih.');
+    } finally {
+      setDeletingBatch(false);
+    }
+  };
+
+  const handleDeleteAllSection = async () => {
+    setDeletingBatch(true);
+    try {
+      const res = await api.post('/questions/batch-delete', { section: selectedSection });
+      alert(res.data?.message || `Berhasil mengosongkan seluruh butir soal Section ${selectedSection}.`);
+      setSelectedQIds([]);
+      setConfirmDeleteAllModalOpen(false);
+      fetchQuestions();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Gagal mengosongkan butir soal.');
+    } finally {
+      setDeletingBatch(false);
+    }
+  };
+
+  const renderBatchToolbar = () => {
+    if (visibleQuestions.length === 0) return null;
+
+    const selectedCount = selectedQIds.length;
+
+    return (
+      <div className="bg-white/60 backdrop-blur-md border border-white/70 rounded-2xl p-3 px-5 flex flex-wrap items-center justify-between gap-3 shadow-[0_4px_20px_rgb(0,0,0,0.02)] mb-4">
+        {/* Left: Select All & Counters */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="flex items-center gap-2.5 cursor-pointer select-none group/sel">
+            <div className="relative flex items-center justify-center">
+              <input 
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                className="sr-only peer"
+              />
+              <div className="w-5 h-5 rounded-lg border-2 border-slate-300 bg-white peer-checked:bg-teal-600 peer-checked:border-teal-600 flex items-center justify-center transition-all shadow-xs group-hover/sel:border-teal-500">
+                <Check className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity stroke-[3]" />
+              </div>
+            </div>
+            <span className="text-sm font-bold text-slate-700">
+              Pilih Semua ({visibleQuestions.length} Soal)
+            </span>
+          </label>
+
+          {selectedCount > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-full border border-rose-200">
+                {selectedCount} Terpilih
+              </span>
+              <button 
+                onClick={() => setSelectedQIds([])}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800 underline decoration-slate-300 hover:decoration-slate-600 cursor-pointer"
+              >
+                Batalkan
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectedCount > 0 && (
+            <button 
+              onClick={() => setConfirmBatchModalOpen(true)}
+              disabled={deletingBatch}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-all shadow-sm shadow-rose-600/20 cursor-pointer disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus Terpilih ({selectedCount})</span>
+            </button>
+          )}
+
+          <button 
+            onClick={() => setConfirmDeleteAllModalOpen(true)}
+            disabled={deletingBatch || visibleQuestions.length === 0}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 font-bold text-xs transition-all border border-slate-200/80 cursor-pointer disabled:opacity-50"
+            title={`Hapus seluruh soal di Section ${selectedSection}`}
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+            <span>Hapus Semua Soal</span>
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const openEditQuestion = (q: any) => {
@@ -404,30 +657,130 @@ export const QuestionBank: React.FC = () => {
   };
 
   const renderQuestionCard = (q: any, index: number) => {
+    const isSelected = selectedQIds.includes(q.id);
+    const isPlaying = playingQuestionId === q.id;
+    const hasAudio = !!(q.audio_url || q.berkas_audio);
+    const audioExists = q.audio_exists !== false && hasAudio;
+    const audioDisplayName = q.audio_filename || q.berkas_audio;
+
     return (
-      <div key={q.id} className="relative p-6 rounded-[2rem] bg-white/50 backdrop-blur-md text-slate-800 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col gap-5 hover:shadow-md transition-shadow group">
-        
+      <div 
+        key={q.id} 
+        className={`relative p-6 rounded-[2rem] bg-white/50 backdrop-blur-md text-slate-800 border transition-all flex flex-col gap-5 hover:shadow-md group ${
+          isSelected 
+            ? 'border-rose-300 ring-2 ring-rose-400/40 bg-rose-50/25 shadow-rose-500/5' 
+            : 'border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+        }`}
+      >
         {/* Floating Actions */}
-        <div className="absolute top-6 right-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-6 right-6 flex items-center gap-2">
           {selectedSection === 1 && (
-            <button className="p-2 rounded-full bg-white/60 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Ganti MP3">
-              <Volume2 className="w-4 h-4" />
+            <button 
+              onClick={() => toggleQuestionAudio(q)}
+              className={`p-2 rounded-full transition-all flex items-center justify-center cursor-pointer shadow-xs ${
+                isPlaying 
+                  ? 'bg-teal-600 text-white ring-2 ring-teal-400 scale-105 shadow-teal-500/30' 
+                  : audioExists 
+                    ? 'bg-teal-50 text-teal-600 border border-teal-200/80 hover:bg-teal-100 hover:scale-105' 
+                    : hasAudio 
+                      ? 'bg-amber-50 text-amber-600 border border-amber-200/80 hover:bg-amber-100' 
+                      : 'bg-slate-100 text-slate-400 hover:text-slate-600 hover:bg-slate-200'
+              }`} 
+              title={
+                isPlaying 
+                  ? `Jeda Audio (${audioDisplayName})` 
+                  : audioExists 
+                    ? `Audio Terhubung: ${audioDisplayName} (Klik untuk Putar)` 
+                    : hasAudio 
+                      ? `File "${audioDisplayName}" belum ada di server (Klik untuk Cek)` 
+                      : 'Belum ada audio terhubung ke soal ini'
+              }
+            >
+              {isPlaying ? (
+                <PauseCircle className="w-4 h-4 fill-current" />
+              ) : audioExists ? (
+                <Volume2 className="w-4 h-4" />
+              ) : (
+                <VolumeX className="w-4 h-4" />
+              )}
             </button>
           )}
-          <button onClick={() => openEditQuestion(q)} className="p-2 rounded-full bg-white/60 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Edit Soal">
+          <button onClick={() => openEditQuestion(q)} className="p-2 rounded-full bg-white/60 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer" title="Edit Soal">
             <Edit2 className="w-4 h-4" />
           </button>
-          <button onClick={() => handleDeleteQuestion(q.id)} className="p-2 rounded-full bg-white/60 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Hapus">
+          <button onClick={() => handleDeleteQuestion(q.id)} className="p-2 rounded-full bg-white/60 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer" title="Hapus">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
 
         <div className="flex items-start gap-4">
-          <span className="shrink-0 w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 font-black flex items-center justify-center text-lg">
-            {index + 1}
-          </span>
+          {/* Checkbox & Question Number */}
+          <div className="flex items-center gap-3 shrink-0 pt-0.5">
+            <label className="relative flex items-center justify-center cursor-pointer select-none group/chk">
+              <input 
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleSelectQuestion(q.id)}
+                className="sr-only peer"
+              />
+              <div className="w-6 h-6 rounded-lg border-2 border-slate-300 bg-white peer-checked:bg-rose-500 peer-checked:border-rose-500 flex items-center justify-center transition-all shadow-xs group-hover/chk:border-rose-400">
+                <Check className="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity stroke-[3]" />
+              </div>
+            </label>
+            <span className={`w-11 h-11 rounded-2xl font-black flex items-center justify-center text-base transition-colors ${
+              isSelected ? 'bg-rose-100 text-rose-700 font-black' : 'bg-emerald-50 text-emerald-600'
+            }`}>
+              {index + 1}
+            </span>
+          </div>
+
           <div className="flex-1 pt-1 pr-32">
-            <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Soal #{index + 1} {q.nama_bagian ? `- ${q.nama_bagian}` : ''}</h4>
+            <div className="flex items-center gap-3 flex-wrap mb-2">
+              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+                Soal #{index + 1} {q.nama_bagian ? `- ${q.nama_bagian}` : ''}
+              </h4>
+
+              {/* Status Audio Terhubung */}
+              {selectedSection === 1 && (
+                hasAudio ? (
+                  <button
+                    onClick={() => toggleQuestionAudio(q)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      isPlaying
+                        ? 'bg-teal-600 text-white shadow-sm shadow-teal-500/30'
+                        : audioExists
+                          ? 'bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                    }`}
+                    title={`Klik untuk ${isPlaying ? 'jeda' : 'putar'} audio`}
+                  >
+                    {isPlaying ? (
+                      <>
+                        <PauseCircle className="w-3.5 h-3.5" />
+                        <span>Memutar: {audioDisplayName}</span>
+                        <div className="flex items-end gap-0.5 h-3 ml-0.5">
+                          <div className="w-0.5 h-2 bg-white rounded-full animate-bounce"></div>
+                          <div className="w-0.5 h-3 bg-white rounded-full animate-bounce [animation-delay:0.15s]"></div>
+                          <div className="w-0.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.3s]"></div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Audio Terhubung: {audioDisplayName}</span>
+                        <PlayCircle className="w-3.5 h-3.5 opacity-60" />
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-400 border border-slate-200/60">
+                    <VolumeX className="w-3 h-3" />
+                    <span>Belum Terhubung Audio</span>
+                  </span>
+                )
+              )}
+            </div>
+
             <p className="text-lg font-bold text-slate-800 leading-relaxed mb-4">
               {q.pertanyaan}
             </p>
@@ -482,92 +835,66 @@ export const QuestionBank: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
           className="flex-1 flex flex-col gap-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-6"
-          style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent)' }}
         >
-          {/* Header */}
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pt-2 text-slate-800">
+          {/* Header & Button Actions */}
+          <div className="flex flex-col gap-4 pt-2">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">Bank Soal TOEFL ITP (140 Butir)</h1>
-              <p className="text-slate-500 font-medium">Kelola wacana bacaan, berkas audio terenkripsi, dan kunci jawaban per section.</p>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-slate-800">Bank Soal TOEFL ITP (140 Butir)</h1>
+              <p className="text-slate-500 font-medium text-sm">Kelola wacana bacaan, berkas audio terenkripsi, dan kunci jawaban per section.</p>
             </div>
-            
-            <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
 
-              <button onClick={handleDownloadTemplate} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-indigo-100 hover:border-indigo-200 bg-indigo-50 text-indigo-700 font-bold text-sm transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] cursor-pointer">
-                <Download className="w-4 h-4" />
-                <span>Template Excel</span>
-              </button>
-              <input 
-                type="file" 
-                accept=".xlsx, .xls" 
-                className="hidden" 
-                ref={fileInputRef}
-                onChange={handleExcelUpload}
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-white/50 hover:border-slate-300 bg-white/60 text-slate-700 font-bold text-sm transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] cursor-pointer"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Import Soal</span>
-              </button>
-              <button onClick={() => { setEditQId(null); setPertanyaan(''); setPilihanA(''); setPilihanB(''); setPilihanC(''); setPilihanD(''); setCreateQModalOpen(true); }} className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] shadow-emerald-600/20 cursor-pointer">
-                <Plus className="w-5 h-5" />
-                <span>Tambah Butir Soal</span>
-              </button>
-            </div>
-          </header>
+            {/* Action Buttons Bar */}
+            <div className="bg-white/40 backdrop-blur-md border border-white/70 rounded-2xl p-3 md:px-6 md:py-3.5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
+              {/* Left Action Buttons */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <button 
+                  onClick={handleDownloadTemplate} 
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ece8fd] hover:bg-[#e0d9fc] text-[#5540bf] font-bold text-sm transition-all shadow-sm border border-[#dcd4fa] cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Template Excel</span>
+                </button>
 
-          {/* Master Audio Preview for Section 1 */}
-          {selectedSection === 1 && (
-            <div className={`p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-              questions.find(q => q.berkas_audio) 
-                ? 'bg-emerald-50/80 backdrop-blur-md border border-emerald-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]' 
-                : 'bg-white/40 border-2 border-dashed border-slate-300'
-            }`}>
-              {questions.find(q => q.berkas_audio) ? (
-                <>
-                  <div>
-                    <h3 className="font-bold text-emerald-900 mb-1 flex items-center gap-2">
-                      <Volume2 className="w-5 h-5" /> Master Audio Listening (Aktif)
-                    </h3>
-                    <p className="text-sm text-emerald-700 font-medium">Audio ini akan diputar untuk seluruh mahasiswa pada Section 1 secara otomatis.</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MiniAudioPlayer 
-                      src={
-                        (questions.find(q => q.berkas_audio)?.berkas_audio || '').startsWith('http') || (questions.find(q => q.berkas_audio)?.berkas_audio || '').startsWith('/')
-                          ? (questions.find(q => q.berkas_audio)?.berkas_audio || '')
-                          : `/static/audio/${questions.find(q => q.berkas_audio)?.berkas_audio || ''}`
-                      } 
-                      filename={questions.find(q => q.berkas_audio)?.berkas_audio?.split('/').pop() || 'master-audio.mp3'} 
-                    />
-                    <div className="flex gap-2">
-                      <button onClick={() => setAudioModalOpen(true)} className="p-2 rounded-full bg-white text-emerald-600 hover:bg-emerald-100 transition-colors shadow-sm cursor-pointer" title="Ganti Master Audio">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDeleteMasterAudio(questions.find(q => q.berkas_audio).id)} className="p-2 rounded-full bg-white text-rose-500 hover:bg-rose-50 transition-colors shadow-sm cursor-pointer" title="Hapus Master Audio">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <h3 className="font-bold text-slate-700 mb-1 flex items-center gap-2">
-                      <Volume2 className="w-5 h-5 text-slate-400" /> Master Audio Listening Belum Ada
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium">Unggah 1 file MP3 yang berisi instruksi dan percakapan untuk seluruh soal Section 1.</p>
-                  </div>
-                  <button onClick={() => setAudioModalOpen(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-emerald-600 font-bold text-sm transition-all shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:bg-emerald-50 border border-emerald-100 cursor-pointer">
-                    <Upload className="w-4 h-4" />
-                    <span>Unggah MP3 Sekarang</span>
-                  </button>
-                </>
-              )}
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  className="hidden" 
+                  ref={fileInputRef}
+                  onChange={handleExcelUpload}
+                />
+
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 font-bold text-sm transition-all shadow-sm border border-white cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Import Soal</span>
+                </button>
+              </div>
+
+              {/* Right Action Buttons */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <button 
+                  onClick={() => { setEditQId(null); setPertanyaan(''); setPilihanA(''); setPilihanB(''); setPilihanC(''); setPilihanD(''); setCreateQModalOpen(true); }} 
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#058252] hover:bg-[#046e45] text-white font-bold text-sm transition-all shadow-sm shadow-emerald-700/20 cursor-pointer"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Tambah Butir Soal</span>
+                </button>
+
+                <button 
+                  onClick={() => navigate('/proctor/audio')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#e6f7ef] hover:bg-[#d5f2e3] text-[#00663f] font-bold text-sm transition-all shadow-sm border border-[#bce8d0] cursor-pointer"
+                  title="Buka Media Library untuk mengelola berkas audio"
+                >
+                  <Music className="w-4 h-4 text-[#00875a]" />
+                  <span>Media Library</span>
+                </button>
+              </div>
             </div>
-          )}
+          </div>
+
+
 
           {/* Content Area */}
           <div className="flex-1 flex flex-col min-h-0">
@@ -586,7 +913,7 @@ export const QuestionBank: React.FC = () => {
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 [&::-webkit-scrollbar]:hidden" style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent)' }}>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 [&::-webkit-scrollbar]:hidden">
                     {passages.map((p, idx) => (
                       <div 
                         key={p.id}
@@ -620,7 +947,8 @@ export const QuestionBank: React.FC = () => {
                        Tambah Anak Soal
                      </button>
                    </div>
-                   <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden" style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent)' }}>
+                   <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:hidden">
+                     {renderBatchToolbar()}
                      {questions.filter(q => q.wacana_id === activePassageId).map((q, idx) => renderQuestionCard(q, idx))}
                      {questions.filter(q => q.wacana_id === activePassageId).length === 0 && (
                         <div className="text-center py-12 text-slate-400 text-sm font-medium">Belum ada butir soal untuk wacana ini.</div>
@@ -630,7 +958,8 @@ export const QuestionBank: React.FC = () => {
               </div>
             ) : (
               // SECTION 1 & 2: LIST LAYOUT
-              <div className="flex-1 overflow-y-auto space-y-6 [&::-webkit-scrollbar]:hidden pr-2" style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent)' }}>
+              <div className="flex-1 overflow-y-auto space-y-6 [&::-webkit-scrollbar]:hidden pr-2">
+                {renderBatchToolbar()}
                 {questions.map((q, idx) => renderQuestionCard(q, idx))}
                 {questions.length === 0 && (
                   <div className="text-center py-20 bg-white/60 rounded-[2rem] border border-white/40 border-dashed text-slate-400 font-bold">
@@ -688,6 +1017,189 @@ export const QuestionBank: React.FC = () => {
               {submitting ? 'Mengunggah...' : 'Simpan & Jadikan Master Audio'}
            </button>
         </form>
+      </Modal>
+
+      {/* Modal Media Library */}
+      <Modal isOpen={mediaLibraryModalOpen} onClose={closeMediaLibraryModal} title="Media Library (Pustaka Audio)">
+        <div className="flex flex-col gap-4 text-slate-800 max-h-[70vh] overflow-hidden">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <p className="text-xs text-slate-500 font-medium">
+              Pilih audio untuk dijadikan master Section 1 atau unggah berkas MP3 baru.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={fetchAudioLibrary}
+                className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
+                title="Refresh Pustaka"
+              >
+                <RefreshCw className={`w-4 h-4 ${loadingAudioLibrary ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                type="button"
+                onClick={() => libraryFileInputRef.current?.click()}
+                disabled={uploadingLibraryAudio}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+              >
+                {uploadingLibraryAudio ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                <span>Upload MP3 Baru</span>
+              </button>
+              <input
+                type="file"
+                ref={libraryFileInputRef}
+                onChange={handleUploadLibraryAudio}
+                accept="audio/mp3,audio/*"
+                className="hidden"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+            {loadingAudioLibrary ? (
+              <div className="py-12 flex flex-col items-center justify-center text-slate-400">
+                <RefreshCw className="w-6 h-6 animate-spin mb-2 text-emerald-500" />
+                <span className="text-xs font-semibold">Memuat audio...</span>
+              </div>
+            ) : audioLibraryFiles.length === 0 ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400">
+                <Music className="w-10 h-10 mb-2 opacity-40 text-emerald-600" />
+                <p className="font-bold text-sm text-slate-600">Pustaka Audio Masih Kosong</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                  Belum ada file audio di server. Klik "Upload MP3 Baru" di atas untuk menambahkan berkas.
+                </p>
+              </div>
+            ) : (
+              audioLibraryFiles.map((audio) => {
+                const currentMaster = questions.find(q => q.berkas_audio)?.berkas_audio;
+                const isCurrentMaster = currentMaster === audio.url || currentMaster === audio.filename || currentMaster === `/static/audio/${audio.filename}`;
+                const isPlaying = playingModalUrl === audio.url;
+
+                return (
+                  <div
+                    key={audio.filename}
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                      isCurrentMaster ? 'bg-emerald-50/70 border-emerald-300 ring-1 ring-emerald-400' : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden flex-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleModalPlay(audio.url)}
+                        className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center cursor-pointer transition-colors ${
+                          isPlaying ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                        }`}
+                        title={isPlaying ? 'Pause' : 'Putar'}
+                      >
+                        {isPlaying ? <PauseCircle className="w-5 h-5" /> : <PlayCircle className="w-5 h-5 ml-0.5" />}
+                      </button>
+                      <div className="overflow-hidden flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-xs text-slate-800 truncate" title={audio.filename}>
+                            {audio.filename}
+                          </p>
+                          {isCurrentMaster && (
+                            <span className="shrink-0 text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Master Aktif
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                          {(audio.size / (1024 * 1024)).toFixed(2)} MB • {new Date(audio.createdAt).toLocaleDateString('id-ID')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!isCurrentMaster ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectMasterAudio(audio.url)}
+                          className="px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm"
+                        >
+                          Pilih Jadi Master
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="px-3 py-1.5 rounded-full bg-slate-100 text-emerald-700 font-bold text-xs cursor-default"
+                        >
+                          Sedang Aktif
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAudioFromLibrary(audio.filename)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                        title="Hapus berkas dari server"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Konfirmasi Hapus Soal Terpilih */}
+      <Modal isOpen={confirmBatchModalOpen} onClose={() => setConfirmBatchModalOpen(false)} title="Hapus Butir Soal Terpilih">
+        <div className="flex flex-col gap-4 text-slate-800">
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Apakah Anda yakin ingin menghapus <strong className="text-slate-800">{selectedQIds.length} butir soal</strong> yang telah dipilih? 
+            Tindakan ini permanen dan tidak dapat dibatalkan.
+          </p>
+          <div className="flex gap-3 justify-end mt-2">
+            <button 
+              type="button"
+              onClick={() => setConfirmBatchModalOpen(false)}
+              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer transition-colors"
+            >
+              Batal
+            </button>
+            <button 
+              type="button"
+              onClick={handleBatchDelete}
+              disabled={deletingBatch}
+              className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm cursor-pointer shadow-md shadow-rose-600/20 disabled:opacity-50 flex items-center gap-2 transition-colors"
+            >
+              {deletingBatch ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              <span>{deletingBatch ? 'Menghapus...' : `Hapus ${selectedQIds.length} Soal`}</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Konfirmasi Hapus Seluruh Soal Section */}
+      <Modal isOpen={confirmDeleteAllModalOpen} onClose={() => setConfirmDeleteAllModalOpen(false)} title={`Hapus Seluruh Soal Section ${selectedSection}`}>
+        <div className="flex flex-col gap-4 text-slate-800">
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Apakah Anda yakin ingin menghapus <strong>seluruh butir soal pada Section {selectedSection}</strong> ({questions.length} butir soal)?
+          </p>
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold">
+            Peringatan: Seluruh butir soal dan kunci jawaban pada bagian ini akan dihapus permanen dari basis data.
+          </div>
+          <div className="flex gap-3 justify-end mt-2">
+            <button 
+              type="button"
+              onClick={() => setConfirmDeleteAllModalOpen(false)}
+              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm cursor-pointer transition-colors"
+            >
+              Batal
+            </button>
+            <button 
+              type="button"
+              onClick={handleDeleteAllSection}
+              disabled={deletingBatch}
+              className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm cursor-pointer shadow-md shadow-rose-600/20 disabled:opacity-50 flex items-center gap-2 transition-colors"
+            >
+              {deletingBatch ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              <span>{deletingBatch ? 'Menghapus...' : 'Ya, Hapus Semua Soal'}</span>
+            </button>
+          </div>
+        </div>
       </Modal>
 
     </div>

@@ -5,7 +5,8 @@ interface SectionTimerProps {
   durationSeconds: number;
   onTimeUp: () => void;
   sectionName?: string;
-  theme?: 'dark' | 'light';
+  theme?: 'dark' | 'light' | 'transparent';
+  isPaused?: boolean;
 }
 
 export const SectionTimer: React.FC<SectionTimerProps> = ({
@@ -13,6 +14,7 @@ export const SectionTimer: React.FC<SectionTimerProps> = ({
   onTimeUp,
   sectionName = 'Section',
   theme = 'light',
+  isPaused = false,
 }) => {
   const [timeLeft, setTimeLeft] = useState(durationSeconds);
   const isLight = theme === 'light';
@@ -23,9 +25,11 @@ export const SectionTimer: React.FC<SectionTimerProps> = ({
 
   useEffect(() => {
     if (timeLeft <= 0) {
-      onTimeUp();
+      if (!isPaused) onTimeUp();
       return;
     }
+
+    if (isPaused) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -39,7 +43,7 @@ export const SectionTimer: React.FC<SectionTimerProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, onTimeUp]);
+  }, [timeLeft, onTimeUp, isPaused]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -50,9 +54,11 @@ export const SectionTimer: React.FC<SectionTimerProps> = ({
       className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border transition-all ${
         isWarning
           ? 'bg-rose-500/10 text-rose-600 border-rose-200 animate-pulse'
+          : theme === 'transparent'
+          ? 'bg-transparent text-inherit border-transparent px-0 py-0'
           : isLight
-          ? 'bg-slate-100 text-blue-700 border-slate-200'
-          : 'bg-slate-800/90 text-blue-400 border-slate-700/80'
+          ? 'bg-slate-100 text-emerald-700 border-slate-200'
+          : 'bg-emerald-900/40 text-emerald-100 border-emerald-700/50'
       }`}
     >
       <Clock className="w-4 h-4 shrink-0" />

@@ -16,6 +16,7 @@ import { TokenManager } from './Page/proctor/TokenManager';
 import { QuestionBank } from './Page/proctor/QuestionBank';
 import { ScoreRecap } from './Page/proctor/ScoreRecap';
 import { SettingsProctor } from './Page/proctor/SettingsProctor';
+import { AudioManager } from './Page/proctor/AudioManager';
 
 // Error Page
 import { SebForbidden } from './Page/error/SebForbidden';
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/proctor/peserta" element={<ParticipantManager />} />
         <Route path="/proctor/tokens" element={<TokenManager />} />
         <Route path="/proctor/bank" element={<QuestionBank />} />
+        <Route path="/proctor/audio" element={<AudioManager />} />
         <Route path="/proctor/recap" element={<ScoreRecap />} />
         <Route path="/proctor/settings" element={<SettingsProctor />} />
 

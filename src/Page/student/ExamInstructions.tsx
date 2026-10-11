@@ -30,6 +30,7 @@ export const ExamInstructions: React.FC = () => {
         await db.passages.bulkAdd(passages);
       }
 
+      localStorage.removeItem('stbtoefl_played_audios');
       navigate('/student/exam');
     } catch (err: any) {
       console.error('[PREFETCH ERROR]', err);
@@ -40,14 +41,14 @@ export const ExamInstructions: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] font-sans flex flex-col selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] font-sans flex flex-col selection:bg-emerald-600 selection:text-white">
       <StudentHeader subtitle="Petunjuk Resmi Ujian TOEFL ITP" />
 
       <main className="flex-1 w-full max-w-7xl mx-auto p-6 md:p-8 lg:p-12 flex flex-col justify-center">
         
         {/* Header Title */}
         <div className="mb-10 text-center md:text-left flex items-center gap-4">
-          <div className="hidden md:flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 shadow-sm">
+          <div className="hidden md:flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">
             <FileText className="w-7 h-7" />
           </div>
           <div>
@@ -158,9 +159,9 @@ export const ExamInstructions: React.FC = () => {
                   type="checkbox"
                   checked={agreed}
                   onChange={(e) => setAgreed(e.target.checked)}
-                  className="w-5 h-5 rounded border-[#E2E8F0] text-blue-600 focus:ring-blue-600 cursor-pointer mt-0.5"
+                  className="w-5 h-5 rounded border-[#E2E8F0] text-emerald-600 focus:ring-emerald-600 cursor-pointer mt-0.5"
                 />
-                <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-600 transition-colors leading-relaxed">
+                <span className="text-sm font-semibold text-slate-700 group-hover:text-emerald-600 transition-colors leading-relaxed">
                   Saya telah membaca, memahami, dan mematuhi seluruh tata tertib yang berlaku.
                 </span>
               </label>
@@ -168,7 +169,7 @@ export const ExamInstructions: React.FC = () => {
               <button
                 onClick={handleStartExam}
                 disabled={!agreed || loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-2xl shadow-sm shadow-blue-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-6 rounded-2xl shadow-sm shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span>Mengunduh Data Ujian...</span>

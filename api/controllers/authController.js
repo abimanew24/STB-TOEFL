@@ -11,10 +11,10 @@ export async function loginStudent(req, res) {
   try {
     const { nomor_induk, nama_lengkap, email, token_ujian } = req.body;
 
-    if (!nomor_induk || !nama_lengkap || !token_ujian) {
+    if (!nomor_induk || !nama_lengkap || !email || !token_ujian) {
       return res.status(400).json({
         error: 'Data Tidak Lengkap',
-        message: 'NIM, Nama Lengkap, dan Token Ujian wajib diisi.'
+        message: 'NIM, Nama Lengkap, Email, dan Token Ujian wajib diisi.'
       });
     }
 
@@ -39,30 +39,39 @@ export async function loginStudent(req, res) {
       });
     }
 
-    // 2. Daftarkan atau dapatkan akun mahasiswa di tabel `pengguna`
-    const studentEmail = email ? email.trim() : `${nomor_induk.trim()}@student.stbtoefl.ac.id`;
-    
+    // 2. Periksa apakah akun mahasiswa sudah didaftarkan oleh panitia di tabel `pengguna`
     let [users] = await pool.query(
-      `SELECT * FROM pengguna WHERE nomor_induk = ? LIMIT 1`,
+      `SELECT * FROM pengguna WHERE nomor_induk = ? AND peran = 'mahasiswa' LIMIT 1`,
       [nomor_induk.trim()]
     );
 
-    let userId;
     if (users.length === 0) {
-      const defaultPassHash = await bcrypt.hash('MahasiswaTOEFL2026', 10);
-      const [insertResult] = await pool.query(
-        `INSERT INTO pengguna (nomor_induk, nama_lengkap, email, kata_sandi, peran) VALUES (?, ?, ?, ?, 'mahasiswa')`,
-        [nomor_induk.trim(), nama_lengkap.trim(), studentEmail, defaultPassHash]
-      );
-      userId = insertResult.insertId;
-    } else {
-      userId = users[0].id;
-      // Update nama / email jika ada pembaruan
-      await pool.query(
-        `UPDATE pengguna SET nama_lengkap = ?, email = ? WHERE id = ?`,
-        [nama_lengkap.trim(), studentEmail, userId]
-      );
+      return res.status(401).json({
+        error: 'Peserta Tidak Terdaftar',
+        message: 'NIM Anda belum didaftarkan oleh panitia. Anda tidak diizinkan mengikuti ujian.'
+      });
     }
+
+    const student = users[0];
+
+    // Validasi kecocokan Nama Lengkap (case-insensitive)
+    if (student.nama_lengkap.toLowerCase() !== nama_lengkap.trim().toLowerCase()) {
+      return res.status(401).json({
+        error: 'Data Tidak Cocok',
+        message: 'Nama Lengkap tidak sesuai dengan database panitia. Periksa kembali ejaan nama Anda.'
+      });
+    }
+
+    // Validasi kecocokan Email
+    if (student.email && student.email.toLowerCase() !== email.trim().toLowerCase()) {
+      return res.status(401).json({
+        error: 'Data Tidak Cocok',
+        message: 'Email yang Anda masukkan tidak sesuai dengan database panitia.'
+      });
+    }
+
+    const userId = student.id;
+    const studentEmail = student.email;
 
     // 3. Penjaga Ujian Ganda: Periksa apakah mahasiswa sudah pernah menyelesaikan ujian pada sesi ini
     const [existingResults] = await pool.query(

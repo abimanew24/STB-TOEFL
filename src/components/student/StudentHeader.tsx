@@ -22,7 +22,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
       subtitle={subtitle}
       userName={name}
       userRole="mahasiswa"
-      theme="light"
+      theme="emerald"
       onLogout={onLogout}
     />
   );

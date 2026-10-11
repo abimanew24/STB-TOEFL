@@ -36,7 +36,7 @@ export const SectionBreakModal: React.FC<SectionBreakModalProps> = ({
             </div>
 
             <div>
-              <span className="text-[10px] uppercase font-bold px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
+              <span className="text-[10px] uppercase font-bold px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Transisi Antar Section
               </span>
               <h3 className="text-xl font-bold text-slate-900 mt-2">
@@ -53,13 +53,13 @@ export const SectionBreakModal: React.FC<SectionBreakModalProps> = ({
                 <span>Petunjuk Section Berikutnya:</span>
               </div>
               <p className="text-xs text-slate-600">
-                Anda akan melanjutkan ke <strong className="text-blue-700">{nextSectionName}</strong>. Setelah berpindah, Anda tidak dapat kembali ke section sebelumnya.
+                Anda akan melanjutkan ke <strong className="text-emerald-700">{nextSectionName}</strong>. Setelah berpindah, Anda tidak dapat kembali ke section sebelumnya.
               </p>
             </div>
 
             <button
               onClick={onProceed}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <span>Mulai {nextSectionName}</span>
               <ArrowRight className="w-4 h-4" />

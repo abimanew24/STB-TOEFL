@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Settings, LogOut, 
-  Key, BookOpen, FileText, MonitorPlay, Command, Users
+  Key, BookOpen, FileText, MonitorPlay, Command, Users, Music
 } from 'lucide-react';
 
 // ... (in SidebarProctorProps...)

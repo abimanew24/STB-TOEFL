@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, Key, Activity, ShieldCheck
-} from 'lucide-react';
+import { Users, Key, Activity, ShieldCheck } from 'lucide-react';
+import { AreaChart, Area, Tooltip, ResponsiveContainer } from 'recharts';
 import { SidebarProctor } from '../../components/common/SidebarProctor';
 import { ProctorHeader } from '../../components/proctor/ProctorHeader';
 import api from '../../services/api';
@@ -20,6 +19,16 @@ export const DashboardProctor: React.FC = () => {
     totalAnomalies: 0,
     liveParticipants: []
   });
+
+  const mockChartData = [
+    { time: '08:00', score: 400, anomalies: 0 },
+    { time: '08:15', score: 450, anomalies: 1 },
+    { time: '08:30', score: 480, anomalies: 0 },
+    { time: '08:45', score: 510, anomalies: 2 },
+    { time: '09:00', score: 490, anomalies: 0 },
+    { time: '09:15', score: 530, anomalies: 0 },
+    { time: '09:30', score: 550, anomalies: 1 },
+  ];
 
   const proctorInfoStr = localStorage.getItem('proctor_info');
   const proctorInfo = proctorInfoStr ? JSON.parse(proctorInfoStr) : null;
@@ -60,7 +69,6 @@ export const DashboardProctor: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
           className="flex-1 flex flex-col gap-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-6 pr-2 md:pr-4"
-          style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent)' }}
         >
           
           {/* Top Metric Cards Grid */}
@@ -160,12 +168,23 @@ export const DashboardProctor: React.FC = () => {
                 </div>
               </div>
 
-              {/* Abstract curved line decorative element for the bottom of the card */}
-              <div className="absolute bottom-0 left-0 w-full h-32 pointer-events-none opacity-40">
-                <svg viewBox="0 0 800 150" className="w-full h-full" preserveAspectRatio="none">
-                  <path d="M 0 150 L 0 120 C 50 120, 80 80, 150 80 S 250 130, 300 130 S 400 60, 450 60 S 550 110, 600 110 S 700 40, 800 40 L 800 150 Z" fill="none" stroke="#0F766E" strokeWidth="3" />
-                  <path d="M 0 150 L 0 120 C 50 120, 80 80, 150 80 S 250 130, 300 130 S 400 60, 450 60 S 550 110, 600 110 S 700 40, 800 40 L 800 150 Z" fill="#14B8A6" opacity="0.15" />
-                </svg>
+              {/* Functional Area Chart */}
+              <div className="absolute bottom-0 left-0 w-full h-32 opacity-70">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={mockChartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#14B8A6" stopOpacity={0.05}/>
+                      </linearGradient>
+                    </defs>
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(4px)' }} 
+                      labelStyle={{ color: '#64748b', fontWeight: 'bold' }}
+                    />
+                    <Area type="monotone" dataKey="score" stroke="#0F766E" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             </div>
 

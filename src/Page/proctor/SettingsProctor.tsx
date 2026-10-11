@@ -64,7 +64,6 @@ export const SettingsProctor: React.FC = () => {
             {/* Scrollable container with the cool mask */}
             <div 
               className="flex-1 overflow-y-auto p-10 [&::-webkit-scrollbar]:hidden pb-16"
-              style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent)' }}
             >
               <div className="w-full max-w-4xl mx-auto mt-4">
                 

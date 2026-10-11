@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, User, Key, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
+import { db } from '../../services/db';
 
 export const LoginStudent: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,25 @@ export const LoginStudent: React.FC = () => {
   const [tokenUjian, setTokenUjian] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Clear any previous session memory (IndexedDB and localStorage)
+    const clearMemory = async () => {
+      localStorage.removeItem('student_token');
+      localStorage.removeItem('student_info');
+      localStorage.removeItem('student_result');
+      
+      try {
+        await db.userAnswers.clear();
+        await db.questions.clear();
+        await db.passages.clear();
+      } catch (err) {
+        console.error('Failed to clear database', err);
+      }
+    };
+    
+    clearMemory();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,9 +150,10 @@ export const LoginStudent: React.FC = () => {
                   <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email (Opsional)"
+                    placeholder="Email"
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium"
                   />
                 </div>

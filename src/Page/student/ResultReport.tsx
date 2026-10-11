@@ -40,7 +40,7 @@ export const ResultReport: React.FC = () => {
 
   const getCefrBadgeColor = (level: string) => {
     if (level === 'C1') return 'bg-purple-50 text-purple-700 border-purple-200';
-    if (level === 'B2') return 'bg-blue-50 text-blue-700 border-blue-200';
+    if (level === 'B2') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (level === 'B1') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     return 'bg-amber-50 text-amber-700 border-amber-200';
   };
@@ -55,7 +55,7 @@ export const ResultReport: React.FC = () => {
       <main className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
         {loading ? (
           <div className="text-center py-20">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-sm text-slate-500">Memproses kelulusan ujian Anda...</p>
           </div>
         ) : (
@@ -76,7 +76,7 @@ export const ResultReport: React.FC = () => {
             <div className="w-full max-w-sm border-t border-slate-100 pt-8 flex justify-center">
               <button
                 onClick={handleLogout}
-                className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-600/20 transition-all cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
               >
                 <LogOut className="w-5 h-5" />
                 <span>Exit from Exam Room</span>

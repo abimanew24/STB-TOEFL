@@ -1,5 +1,11 @@
 import pool from '../database.js';
 import { calculateAndStoreScore } from './scoringController.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * GET /api/exam/prefetch
@@ -19,9 +25,29 @@ export async function prefetchQuestions(req, res) {
       `SELECT id, judul, isi_wacana FROM wacana_reading ORDER BY id ASC`
     );
 
+    const uploadDir = path.join(__dirname, '../static/audio');
+    const diskFiles = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir) : [];
+
+    const enrichedQuestions = questions.map(q => {
+      if (!q.berkas_audio) return q;
+      const raw = String(q.berkas_audio).trim();
+      const baseClean = path.basename(raw);
+      const nameNoExt = path.parse(baseClean).name.toLowerCase();
+
+      const matched = diskFiles.find(f => {
+        if (f.toLowerCase() === baseClean.toLowerCase()) return true;
+        return path.parse(f).name.toLowerCase() === nameNoExt;
+      });
+
+      return {
+        ...q,
+        berkas_audio: matched || raw
+      };
+    });
+
     return res.json({
-      total_soal: questions.length,
-      questions,
+      total_soal: enrichedQuestions.length,
+      questions: enrichedQuestions,
       passages
     });
   } catch (error) {

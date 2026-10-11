@@ -249,7 +249,6 @@ export const ScoreRecap: React.FC = () => {
  animate={{ opacity: 1, y: 0 }}
  transition={{ duration: 0.4, ease: 'easeOut' }}
  className="flex-1 flex flex-col gap-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-6"
- style={{ WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent)' }}
  >
  {/* Header */}
  <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pt-2 text-slate-800">

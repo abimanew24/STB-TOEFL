@@ -39,7 +39,7 @@ export const AudioCheck: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-[#F8FAFC] text-[#0F172A] font-sans flex flex-col selection:bg-blue-600 selection:text-white">
+    <div className="h-screen bg-[#F8FAFC] text-[#0F172A] font-sans flex flex-col selection:bg-emerald-600 selection:text-white">
       
       {/* Top Header Bar */}
       <StudentHeader subtitle="Audio Setup" />
@@ -61,7 +61,7 @@ export const AudioCheck: React.FC = () => {
             <div className="flex items-center gap-6 w-full max-w-lg bg-[#F8FAFC] p-4 pr-6 rounded-full border border-[#E2E8F0]">
               <button 
                 onClick={togglePlay}
-                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-bold text-sm transition-colors shadow-sm cursor-pointer w-64"
+                className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-full font-bold text-sm transition-colors shadow-sm cursor-pointer w-64"
               >
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
                 <span>Putar Suara Percakapan</span>
@@ -89,7 +89,7 @@ export const AudioCheck: React.FC = () => {
                   min="0" max="1" step="0.1" 
                   value={volume}
                   onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-20 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  className="w-20 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                 />
               </div>
             </div>
@@ -104,16 +104,16 @@ export const AudioCheck: React.FC = () => {
                 type="checkbox" 
                 checked={audioTested}
                 onChange={(e) => setAudioTested(e.target.checked)}
-                className="w-5 h-5 rounded border-[#E2E8F0] text-blue-600 focus:ring-blue-600 cursor-pointer"
+                className="w-5 h-5 rounded border-[#E2E8F0] text-emerald-600 focus:ring-emerald-600 cursor-pointer"
               />
-              <span className="text-sm font-bold text-[#1E293B] group-hover:text-blue-600 transition-colors">Saya mendengar narator dengan jelas.</span>
+              <span className="text-sm font-bold text-[#1E293B] group-hover:text-emerald-600 transition-colors">Saya mendengar narator dengan jelas.</span>
             </label>
 
             <div className="flex items-center justify-center gap-4">
               <button 
                 onClick={() => navigate('/student/instructions')}
                 disabled={!audioTested}
-                className="px-8 py-3.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-sm shadow-blue-600/20"
+                className="px-8 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-sm shadow-emerald-600/20"
               >
                 Lanjut ke Petunjuk Ujian
                 <ArrowRight className="w-4 h-4" />

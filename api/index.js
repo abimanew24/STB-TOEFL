@@ -13,7 +13,7 @@ import { verifyStudentToken } from './middleware/authStudent.js';
 // Import Controller Logika Bisnis
 import { loginStudent, loginProctor } from './controllers/authController.js';
 import { getSessions, createSession, toggleSessionStatus, broadcastTokenEmail, getDashboardStats } from './controllers/sessionController.js';
-import { getQuestions, createQuestion, getPassages, createPassage, handleAudioUpload, updateQuestion, deleteQuestion, updatePassage, deletePassage } from './controllers/questionController.js';
+import { getQuestions, createQuestion, getPassages, createPassage, handleAudioUpload, getAudioFiles, deleteAudioFile, clearAllAudioFiles, generateTtsAudio, setMasterAudio, updateQuestion, deleteQuestion, batchDeleteQuestions, updatePassage, deletePassage } from './controllers/questionController.js';
 import { prefetchQuestions, syncAnswers, submitExam } from './controllers/examController.js';
 import { getStudentScore, getScoreRecap } from './controllers/scoringController.js';
 
@@ -95,11 +95,18 @@ app.get('/api/questions', verifyProctorToken, getQuestions);
 app.post('/api/questions', verifyProctorToken, createQuestion);
 app.put('/api/questions/:id', verifyProctorToken, updateQuestion);
 app.delete('/api/questions/:id', verifyProctorToken, deleteQuestion);
+app.post('/api/questions/batch-delete', verifyProctorToken, batchDeleteQuestions);
+app.delete('/api/questions/batch', verifyProctorToken, batchDeleteQuestions);
 app.get('/api/questions/passages', verifyProctorToken, getPassages);
 app.post('/api/questions/passages', verifyProctorToken, createPassage);
 app.put('/api/questions/passages/:id', verifyProctorToken, updatePassage);
 app.delete('/api/questions/passages/:id', verifyProctorToken, deletePassage);
 app.post('/api/questions/upload-audio', verifyProctorToken, handleAudioUpload);
+app.get('/api/questions/audio', verifyProctorToken, getAudioFiles);
+app.delete('/api/questions/audio', verifyProctorToken, clearAllAudioFiles);
+app.delete('/api/questions/audio/:filename', verifyProctorToken, deleteAudioFile);
+app.post('/api/questions/tts', verifyProctorToken, generateTtsAudio);
+app.put('/api/questions/master-audio', verifyProctorToken, setMasterAudio);
 
 app.post('/api/questions/import', verifyProctorToken, async (req, res) => {
   try {
