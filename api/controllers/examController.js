@@ -1,5 +1,6 @@
 import pool from '../database.js';
 import { calculateAndStoreScore } from './scoringController.js';
+import { removeActiveSession } from '../services/activeSessionManager.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -113,6 +114,11 @@ export async function submitExam(req, res) {
 
     // 1. Eksekusi kalkulasi skor
     const result = await calculateAndStoreScore(studentId, sesiId);
+
+    // Hapus sesi aktif mahasiswa setelah ujian selesai
+    if (req.user?.nomor_induk) {
+      removeActiveSession(req.user.nomor_induk);
+    }
 
     return res.json({
       message: 'Ujian TOEFL berhasil diselesaikan. Skor Anda telah tercatat!',

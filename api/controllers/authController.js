@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../database.js';
+import { readStoredSettings } from './systemController.js';
+import { getActiveSession, setActiveSession } from '../services/activeSessionManager.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'stbtoefl_jwt_secret_key_2026_secure';
 
@@ -87,7 +89,23 @@ export async function loginStudent(req, res) {
       });
     }
 
-    // 4. Generate JWT Token untuk Mahasiswa
+    // 4. Blokir Multi-Login: Cek apakah mahasiswa sedang aktif di komputer lain
+    const settings = readStoredSettings();
+    const clientIp = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+    const existingSession = getActiveSession(nomor_induk.trim());
+
+    if (settings.blockMultiLogin && existingSession) {
+      const isExpired = (Date.now() - existingSession.lastSeen) > 30 * 60 * 1000;
+      if (!isExpired) {
+        return res.status(403).json({
+          error: 'Multi-Login Ditolak',
+          code: 'MULTI_LOGIN_BLOCKED',
+          message: `NIM ${nomor_induk.trim()} terdeteksi sedang aktif di perangkat lain (${existingSession.ip || 'Komputer Lab'}). Multi-login diblokir demi integritas ujian. Minta pengawas untuk melakukan reset sesi jika Anda berpindah komputer.`
+        });
+      }
+    }
+
+    // 5. Generate JWT Token untuk Mahasiswa
     const payload = {
       id: userId,
       nomor_induk: nomor_induk.trim(),
@@ -99,6 +117,16 @@ export async function loginStudent(req, res) {
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '6h' });
+
+    // Daftarkan sesi aktif mahasiswa
+    setActiveSession(nomor_induk.trim(), {
+      studentId: userId,
+      token,
+      ip: clientIp,
+      userAgent: req.headers['user-agent'] || '',
+      loginTime: Date.now(),
+      lastSeen: Date.now()
+    });
 
     return res.json({
       message: 'Login Ujian Mahasiswa Berhasil',

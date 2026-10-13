@@ -17,6 +17,15 @@ export default defineConfig({
     host: true, // Membuka akses untuk network/LAN
     port: 5173,
     allowedHosts: true, // Mengizinkan akses dari ngrok
+    watch: {
+      ignored: [
+        '**/api/**',
+        '**/audio_storage/**',
+        '**/uploads/**',
+        '**/temp/**',
+        '**/*.json',
+      ],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5001',

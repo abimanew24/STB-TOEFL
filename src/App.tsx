@@ -20,11 +20,13 @@ import { AudioManager } from './Page/proctor/AudioManager';
 
 // Error Page
 import { SebForbidden } from './Page/error/SebForbidden';
+import { LanguageProvider } from './services/languageContext';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
         {/* Student Exam Routes */}
         <Route path="/" element={<Navigate to="/student/login" replace />} />
         <Route path="/student/login" element={<LoginStudent />} />
@@ -50,5 +52,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/student/login" replace />} />
       </Routes>
     </BrowserRouter>
+  </LanguageProvider>
   );
 }

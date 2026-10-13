@@ -4,9 +4,11 @@ import { FileText, ShieldAlert, Clock, ArrowRight, CheckSquare, Headphones, Edit
 import { StudentHeader } from '../../components/student/StudentHeader';
 import api from '../../services/api';
 import { db } from '../../services/db';
+import { useLanguage } from '../../services/languageContext';
 
 export const ExamInstructions: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +32,39 @@ export const ExamInstructions: React.FC = () => {
         await db.passages.bulkAdd(passages);
       }
 
+      // Hubungkan Pengaturan Proctor: Preload Semua Audio Listening ke Cache Browser
+      try {
+        const cfgRes = await api.get('/system/public-config');
+        if (cfgRes.data?.preloadAllAudio && questions && Array.isArray(questions)) {
+          const audioFiles = questions
+            .filter((q: any) => q.berkas_audio)
+            .map((q: any) => {
+              let f = String(q.berkas_audio).trim();
+              if (!/\.[a-zA-Z0-9]+$/.test(f)) f = `${f}.wav`;
+              return f.startsWith('http') || f.startsWith('/') ? f : `/static/audio/${f}`;
+            });
+          
+          // Cache semua file audio di latar belakang agar audio Section 1 instan
+          Promise.allSettled(audioFiles.map((src: string) => fetch(src, { cache: 'force-cache' }))).catch(() => {});
+        }
+      } catch (e) {
+        // Abaikan error preload non-blocking
+      }
+
       localStorage.removeItem('stbtoefl_played_audios');
       navigate('/student/exam');
     } catch (err: any) {
       console.error('[PREFETCH ERROR]', err);
+      // Jika mode offline aktif dan cache Dexie sudah tersedia, izinkan peserta melanjutkan ujian
+      try {
+        const cachedCount = await db.questions.count();
+        if (cachedCount > 0) {
+          navigate('/student/exam');
+          return;
+        }
+      } catch (cacheErr) {
+        // Abaikan dan lempar error jaringan biasa
+      }
       setError(err.response?.data?.message || 'Gagal mengunduh instrumen soal ujian dari peladen.');
     } finally {
       setLoading(false);
@@ -42,7 +73,7 @@ export const ExamInstructions: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] font-sans flex flex-col selection:bg-emerald-600 selection:text-white">
-      <StudentHeader subtitle="Petunjuk Resmi Ujian TOEFL ITP" />
+      <StudentHeader subtitle={t('examInstSubtitle')} />
 
       <main className="flex-1 w-full max-w-7xl mx-auto p-6 md:p-8 lg:p-12 flex flex-col justify-center">
         
@@ -52,8 +83,8 @@ export const ExamInstructions: React.FC = () => {
             <FileText className="w-7 h-7" />
           </div>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-[#0F172A]">Petunjuk & Integritas Ujian</h2>
-            <p className="text-sm font-medium text-slate-500 mt-1">Harap pahami struktur ujian dan aturan yang berlaku sebelum memulai.</p>
+            <h2 className="text-3xl font-bold tracking-tight text-[#0F172A]">{t('examInstTitle')}</h2>
+            <p className="text-sm font-medium text-slate-500 mt-1">{t('examInstDesc')}</p>
           </div>
         </div>
 
@@ -62,7 +93,7 @@ export const ExamInstructions: React.FC = () => {
           
           {/* LEFT COLUMN: Exam Structure */}
           <div className="lg:col-span-7 flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">Struktur Ujian (140 Soal)</h3>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">{t('examStructureTitle')}</h3>
             
             {/* Section 1 */}
             <div className="bg-white border border-[#E2E8F0] p-6 rounded-2xl flex items-start gap-5 shadow-sm">
@@ -71,12 +102,12 @@ export const ExamInstructions: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-3 mb-1">
-                  <h4 className="text-lg font-bold text-[#1E293B]">Section 1: Listening</h4>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1"><Clock className="w-3 h-3"/> 35 Menit</span>
+                  <h4 className="text-lg font-bold text-[#1E293B]">{t('sec1ListeningTitle')}</h4>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1"><Clock className="w-3 h-3"/> {t('sec1ListeningDuration')}</span>
                 </div>
-                <p className="text-sm font-semibold text-slate-700 mb-1">50 Pertanyaan</p>
+                <p className="text-sm font-semibold text-slate-700 mb-1">{t('sec1ListeningQuestions')}</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Audio akan diputar otomatis satu kali tanpa tombol jeda atau ulang. Pastikan fokus penuh pada percakapan dan monolog.
+                  {t('sec1ListeningDesc')}
                 </p>
               </div>
             </div>
@@ -88,12 +119,12 @@ export const ExamInstructions: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-3 mb-1">
-                  <h4 className="text-lg font-bold text-[#1E293B]">Section 2: Structure</h4>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1"><Clock className="w-3 h-3"/> 25 Menit</span>
+                  <h4 className="text-lg font-bold text-[#1E293B]">{t('sec2StructureTitle')}</h4>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1"><Clock className="w-3 h-3"/> {t('sec2StructureDuration')}</span>
                 </div>
-                <p className="text-sm font-semibold text-slate-700 mb-1">40 Pertanyaan</p>
+                <p className="text-sm font-semibold text-slate-700 mb-1">{t('sec2StructureQuestions')}</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Menguji kemampuan Anda dalam mengenali tata bahasa baku dan ekspresi tertulis dalam bahasa Inggris formal.
+                  {t('sec2StructureDesc')}
                 </p>
               </div>
             </div>
@@ -105,12 +136,12 @@ export const ExamInstructions: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-3 mb-1">
-                  <h4 className="text-lg font-bold text-[#1E293B]">Section 3: Reading</h4>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1"><Clock className="w-3 h-3"/> 55 Menit</span>
+                  <h4 className="text-lg font-bold text-[#1E293B]">{t('sec3ReadingTitle')}</h4>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1"><Clock className="w-3 h-3"/> {t('sec3ReadingDuration')}</span>
                 </div>
-                <p className="text-sm font-semibold text-slate-700 mb-1">50 Pertanyaan</p>
+                <p className="text-sm font-semibold text-slate-700 mb-1">{t('sec3ReadingQuestions')}</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Membaca dan menjawab pertanyaan berdasarkan pemahaman wacana akademik. Layar akan terbagi menjadi dua panel (teks dan soal).
+                  {t('sec3ReadingDesc')}
                 </p>
               </div>
             </div>
@@ -126,21 +157,21 @@ export const ExamInstructions: React.FC = () => {
               
               <div className="flex items-center gap-2 font-bold text-rose-600">
                 <ShieldAlert className="w-5 h-5" />
-                <h3 className="text-base uppercase tracking-wider">Aturan Integritas</h3>
+                <h3 className="text-base uppercase tracking-wider">{t('integrityRulesTitle')}</h3>
               </div>
 
               <ul className="space-y-4">
                 <li className="flex gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0"></div>
-                  <p className="text-sm text-slate-600 leading-relaxed">Ujian dikunci penuh oleh <strong className="text-slate-800">Safe Exam Browser (SEB)</strong>. Percobaan keluar aplikasi akan diblokir dan dicatat sebagai pelanggaran.</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{t('ruleSebLocked')}</p>
                 </li>
                 <li className="flex gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0"></div>
-                  <p className="text-sm text-slate-600 leading-relaxed">Jawaban Anda disimpan otomatis ke server setiap beberapa detik (Auto-Save). Anda tidak perlu menekan tombol simpan.</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{t('ruleAutoSave')}</p>
                 </li>
                 <li className="flex gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0"></div>
-                  <p className="text-sm text-slate-600 leading-relaxed">Waktu per *section* bersifat independen. Waktu sisa di Section 1 tidak dapat diakumulasi ke Section 2.</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{t('ruleIndependentSections')}</p>
                 </li>
               </ul>
 
@@ -162,7 +193,7 @@ export const ExamInstructions: React.FC = () => {
                   className="w-5 h-5 rounded border-[#E2E8F0] text-emerald-600 focus:ring-emerald-600 cursor-pointer mt-0.5"
                 />
                 <span className="text-sm font-semibold text-slate-700 group-hover:text-emerald-600 transition-colors leading-relaxed">
-                  Saya telah membaca, memahami, dan mematuhi seluruh tata tertib yang berlaku.
+                  {t('agreeTermsCheckbox')}
                 </span>
               </label>
 
@@ -172,10 +203,10 @@ export const ExamInstructions: React.FC = () => {
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-6 rounded-2xl shadow-sm shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <span>Mengunduh Data Ujian...</span>
+                  <span>{t('downloadingExamData')}</span>
                 ) : (
                   <>
-                    <span>Mulai Kerjakan Ujian Sekarang</span>
+                    <span>{t('startExamBtn')}</span>
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}

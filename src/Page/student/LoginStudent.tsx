@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, User, Key, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import { db } from '../../services/db';
+import { useLanguage } from '../../services/languageContext';
 
 export const LoginStudent: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [nomorInduk, setNomorInduk] = useState('');
   const [namaLengkap, setNamaLengkap] = useState('');
   const [email, setEmail] = useState('');
@@ -49,6 +51,17 @@ export const LoginStudent: React.FC = () => {
 
       localStorage.setItem('student_token', token);
       localStorage.setItem('student_info', JSON.stringify(student));
+
+      // Periksa apakah uji headset diwajibkan oleh pengawas
+      try {
+        const sysRes = await api.get('/system/public-config');
+        if (sysRes.data?.requireAudioCheck === false) {
+          navigate('/student/instructions');
+          return;
+        }
+      } catch (e) {
+        // Fallback default
+      }
 
       navigate('/student/audio-check');
     } catch (err: any) {
@@ -125,7 +138,7 @@ export const LoginStudent: React.FC = () => {
                     required
                     value={nomorInduk}
                     onChange={(e) => setNomorInduk(e.target.value)}
-                    placeholder="Nomor Induk Mahasiswa"
+                    placeholder={t('nimPlaceholder')}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium"
                   />
                 </div>
@@ -139,7 +152,7 @@ export const LoginStudent: React.FC = () => {
                     required
                     value={namaLengkap}
                     onChange={(e) => setNamaLengkap(e.target.value)}
-                    placeholder="Nama Lengkap"
+                    placeholder={t('namePlaceholder')}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium"
                   />
                 </div>
@@ -168,7 +181,7 @@ export const LoginStudent: React.FC = () => {
                     maxLength={6}
                     value={tokenUjian}
                     onChange={(e) => setTokenUjian(e.target.value.toUpperCase())}
-                    placeholder="Token Ujian"
+                    placeholder={t('tokenPlaceholder')}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 text-sm font-bold text-slate-800 placeholder-slate-400 tracking-widest focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all uppercase"
                   />
                 </div>
@@ -183,7 +196,8 @@ export const LoginStudent: React.FC = () => {
                   <span>Memproses...</span>
                 ) : (
                   <>
-                    <span>Login</span>
+                    <span>{t('loginBtn')}</span>
+                    <ArrowRight className="w-4 h-4 ml-1" />
                   </>
                 )}
               </button>

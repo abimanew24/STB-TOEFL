@@ -8,10 +8,10 @@ USE `db_stbtoefl`;
 -- 1. Tabel Jawaban Mahasiswa (Log Transaksi LWW Auto-Sync)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `jawaban_mahasiswa` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `pengguna_id` SMALLINT UNSIGNED NOT NULL,
-  `sesi_id` TINYINT UNSIGNED NOT NULL,
-  `soal_id` SMALLINT UNSIGNED NOT NULL,
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `pengguna_id` INT UNSIGNED NOT NULL,
+  `sesi_id` INT UNSIGNED NOT NULL,
+  `soal_id` INT UNSIGNED NOT NULL,
   `jawaban_dipilih` ENUM('A', 'B', 'C', 'D') DEFAULT NULL,
   `stempel_waktu_klien` BIGINT UNSIGNED NOT NULL COMMENT 'Unix epoch millisecond',
   `diperbarui_pada` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -26,9 +26,9 @@ CREATE TABLE IF NOT EXISTS `jawaban_mahasiswa` (
 -- 2. Tabel Hasil Ujian (Rekapitulasi Skor ETS & CEFR)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `hasil_ujian` (
-  `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `pengguna_id` SMALLINT UNSIGNED NOT NULL,
-  `sesi_id` TINYINT UNSIGNED NOT NULL,
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `pengguna_id` INT UNSIGNED NOT NULL,
+  `sesi_id` INT UNSIGNED NOT NULL,
   `benar_listening` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `benar_structure` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `benar_reading` TINYINT UNSIGNED NOT NULL DEFAULT 0,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `hasil_ujian` (
   `skala_structure` TINYINT UNSIGNED NOT NULL DEFAULT 31,
   `skala_reading` TINYINT UNSIGNED NOT NULL DEFAULT 31,
   `total_skor_toefl` SMALLINT UNSIGNED NOT NULL DEFAULT 310,
-  `level_cefr` VARCHAR(2) NOT NULL DEFAULT 'A2',
+  `level_cefr` VARCHAR(10) NOT NULL DEFAULT 'A2',
   `selesai_pada` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_hasil_pengguna_sesi` (`pengguna_id`, `sesi_id`),

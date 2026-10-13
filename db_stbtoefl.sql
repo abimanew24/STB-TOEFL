@@ -28,16 +28,16 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `bank_soal` (
-  `id` smallint(5) UNSIGNED NOT NULL,
+  `id` int(10) UNSIGNED NOT NULL,
   `nomor_section` tinyint(3) UNSIGNED NOT NULL COMMENT '1=Listening, 2=Structure, 3=Reading',
-  `nama_bagian` varchar(10) DEFAULT NULL COMMENT 'Part A, Part B, Part C',
-  `wacana_id` tinyint(3) UNSIGNED DEFAULT NULL,
-  `berkas_audio` varchar(100) DEFAULT NULL COMMENT 'Audio MP3 untuk Section 1',
+  `nama_bagian` varchar(30) DEFAULT NULL COMMENT 'Part A, Part B, Part C',
+  `wacana_id` int(10) UNSIGNED DEFAULT NULL,
+  `berkas_audio` varchar(255) DEFAULT NULL COMMENT 'Audio MP3 untuk Section 1',
   `pertanyaan` text NOT NULL,
-  `pilihan_a` varchar(200) NOT NULL,
-  `pilihan_b` varchar(200) NOT NULL,
-  `pilihan_c` varchar(200) NOT NULL,
-  `pilihan_d` varchar(200) NOT NULL,
+  `pilihan_a` text NOT NULL,
+  `pilihan_b` text NOT NULL,
+  `pilihan_c` text NOT NULL,
+  `pilihan_d` text NOT NULL,
   `jawaban_benar` enum('A','B','C','D') NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -194,9 +194,9 @@ INSERT INTO `bank_soal` (`id`, `nomor_section`, `nama_bagian`, `wacana_id`, `ber
 --
 
 CREATE TABLE `hasil_ujian` (
-  `id` smallint(5) UNSIGNED NOT NULL,
-  `pengguna_id` smallint(5) UNSIGNED NOT NULL,
-  `sesi_id` tinyint(3) UNSIGNED NOT NULL,
+  `id` int(10) UNSIGNED NOT NULL,
+  `pengguna_id` int(10) UNSIGNED NOT NULL,
+  `sesi_id` int(10) UNSIGNED NOT NULL,
   `benar_listening` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
   `benar_structure` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
   `benar_reading` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
@@ -204,7 +204,7 @@ CREATE TABLE `hasil_ujian` (
   `skala_structure` tinyint(3) UNSIGNED NOT NULL DEFAULT 31,
   `skala_reading` tinyint(3) UNSIGNED NOT NULL DEFAULT 31,
   `total_skor_toefl` smallint(5) UNSIGNED NOT NULL DEFAULT 310,
-  `level_cefr` varchar(2) NOT NULL DEFAULT 'A2',
+  `level_cefr` varchar(10) NOT NULL DEFAULT 'A2',
   `selesai_pada` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -215,10 +215,10 @@ CREATE TABLE `hasil_ujian` (
 --
 
 CREATE TABLE `jawaban_mahasiswa` (
-  `id` int(10) UNSIGNED NOT NULL,
-  `pengguna_id` smallint(5) UNSIGNED NOT NULL,
-  `sesi_id` tinyint(3) UNSIGNED NOT NULL,
-  `soal_id` smallint(5) UNSIGNED NOT NULL,
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `pengguna_id` int(10) UNSIGNED NOT NULL,
+  `sesi_id` int(10) UNSIGNED NOT NULL,
+  `soal_id` int(10) UNSIGNED NOT NULL,
   `jawaban_dipilih` enum('A','B','C','D') DEFAULT NULL,
   `stempel_waktu_klien` bigint(20) UNSIGNED NOT NULL COMMENT 'Unix epoch millisecond',
   `diperbarui_pada` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -310,11 +310,11 @@ INSERT INTO `konversi_skor` (`skor_mentah`, `skala_listening`, `skala_structure`
 --
 
 CREATE TABLE `pengguna` (
-  `id` smallint(5) UNSIGNED NOT NULL,
-  `nomor_induk` varchar(18) NOT NULL,
-  `nama_lengkap` varchar(80) NOT NULL,
-  `email` varchar(100) NOT NULL,
-  `kata_sandi` varchar(60) NOT NULL,
+  `id` int(10) UNSIGNED NOT NULL,
+  `nomor_induk` varchar(30) NOT NULL,
+  `nama_lengkap` varchar(150) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `kata_sandi` varchar(255) NOT NULL,
   `peran` enum('mahasiswa','pengawas') NOT NULL DEFAULT 'mahasiswa',
   `dibuat_pada` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -334,9 +334,9 @@ INSERT INTO `pengguna` (`id`, `nomor_induk`, `nama_lengkap`, `email`, `kata_sand
 --
 
 CREATE TABLE `sesi_ujian` (
-  `id` tinyint(3) UNSIGNED NOT NULL,
-  `nama_sesi` varchar(60) NOT NULL,
-  `token` varchar(6) NOT NULL,
+  `id` int(10) UNSIGNED NOT NULL,
+  `nama_sesi` varchar(150) NOT NULL,
+  `token` varchar(10) NOT NULL,
   `status_aktif` tinyint(1) NOT NULL DEFAULT 0,
   `waktu_mulai` datetime DEFAULT NULL,
   `waktu_selesai` datetime DEFAULT NULL,
@@ -358,8 +358,8 @@ INSERT INTO `sesi_ujian` (`id`, `nama_sesi`, `token`, `status_aktif`, `waktu_mul
 --
 
 CREATE TABLE `wacana_reading` (
-  `id` tinyint(3) UNSIGNED NOT NULL,
-  `judul` varchar(100) DEFAULT NULL,
+  `id` int(10) UNSIGNED NOT NULL,
+  `judul` varchar(255) DEFAULT NULL,
   `isi_wacana` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -439,37 +439,37 @@ ALTER TABLE `wacana_reading`
 -- AUTO_INCREMENT untuk tabel `bank_soal`
 --
 ALTER TABLE `bank_soal`
-  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=230;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=230;
 
 --
 -- AUTO_INCREMENT untuk tabel `hasil_ujian`
 --
 ALTER TABLE `hasil_ujian`
-  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT untuk tabel `jawaban_mahasiswa`
 --
 ALTER TABLE `jawaban_mahasiswa`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=224;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=224;
 
 --
 -- AUTO_INCREMENT untuk tabel `pengguna`
 --
 ALTER TABLE `pengguna`
-  MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT untuk tabel `sesi_ujian`
 --
 ALTER TABLE `sesi_ujian`
-  MODIFY `id` tinyint(3) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT untuk tabel `wacana_reading`
 --
 ALTER TABLE `wacana_reading`
-  MODIFY `id` tinyint(3) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)

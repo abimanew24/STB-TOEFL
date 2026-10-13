@@ -1,4 +1,6 @@
 import jwt from 'jsonwebtoken';
+import { readStoredSettings } from '../controllers/systemController.js';
+import { getActiveSession, touchActiveSession } from '../services/activeSessionManager.js';
 
 /**
  * Middleware untuk memverifikasi JWT Token sesi Ujian Mahasiswa.
@@ -23,6 +25,20 @@ export function verifyStudentToken(req, res, next) {
         error: 'Akses Ditolak',
         message: 'Token tidak valid untuk sesi ujian mahasiswa.'
       });
+    }
+
+    // Validasi aturan Blokir Multi-Login jika diaktifkan pengawas
+    const settings = readStoredSettings();
+    if (settings.blockMultiLogin && decoded.nomor_induk) {
+      const activeSession = getActiveSession(decoded.nomor_induk);
+      if (activeSession && activeSession.token && activeSession.token !== token) {
+        return res.status(401).json({
+          error: 'Sesi Telah Digantikan',
+          code: 'SESSION_SUPERSEDED',
+          message: 'Akun Anda telah login di komputer/perangkat lain. Sesi pada perangkat ini telah dinonaktifkan demi integritas ujian.'
+        });
+      }
+      touchActiveSession(decoded.nomor_induk);
     }
 
     req.user = decoded;

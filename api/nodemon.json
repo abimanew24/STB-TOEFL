@@ -1,0 +1,19 @@
+{
+  "watch": [
+    "controllers",
+    "middleware",
+    "routes",
+    "services",
+    "utils",
+    "index.js"
+  ],
+  "ignore": [
+    "config/*",
+    "config/**/*.json",
+    "audio_storage/*",
+    "uploads/*",
+    "temp/*",
+    "*.log"
+  ],
+  "ext": "js,mjs,json"
+}

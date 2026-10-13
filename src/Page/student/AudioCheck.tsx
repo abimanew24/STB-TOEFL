@@ -2,15 +2,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Pause, Volume2, ArrowRight, AlertCircle } from 'lucide-react';
 import { StudentHeader } from '../../components/student/StudentHeader';
+import { useLanguage } from '../../services/languageContext';
 
 export const AudioCheck: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [audioTested, setAudioTested] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const demoAudioSrc = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+  // Sumber audio lokal offline dari server LAN CBT
+  const demoAudioSrc = '/static/audio/question 1.wav';
 
   useEffect(() => {
     if (audioRef.current) {
@@ -28,7 +31,7 @@ export const AudioCheck: React.FC = () => {
         setIsPlaying(true);
       }).catch(err => {
         console.error('Audio play failed:', err);
-        alert('Gagal memutar audio. Pastikan koneksi internet stabil atau browser Anda mendukung pemutaran MP3.');
+        alert('Gagal memutar audio. Pastikan perangkat audio/headset Anda terhubung dengan baik.');
         setIsPlaying(false);
       });
     }
@@ -50,8 +53,8 @@ export const AudioCheck: React.FC = () => {
           
           {/* Title & Subtitle */}
           <div className="text-center space-y-3">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#0F172A]">Pemeriksaan Audio</h2>
-            <p className="text-base text-slate-500 font-medium">Pasang headphone Anda dan pastikan suara narator terdengar jelas.</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#0F172A]">{t('audioCheckTitle')}</h2>
+            <p className="text-base text-slate-500 font-medium">{t('audioCheckDesc')}</p>
           </div>
 
           {/* Minimalist Audio Player */}
@@ -64,7 +67,7 @@ export const AudioCheck: React.FC = () => {
                 className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-full font-bold text-sm transition-colors shadow-sm cursor-pointer w-64"
               >
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                <span>Putar Suara Percakapan</span>
+                <span>{t('playAudioBtn')}</span>
               </button>
 
               {/* Waveform / Equalizer Animation */}
@@ -106,7 +109,7 @@ export const AudioCheck: React.FC = () => {
                 onChange={(e) => setAudioTested(e.target.checked)}
                 className="w-5 h-5 rounded border-[#E2E8F0] text-emerald-600 focus:ring-emerald-600 cursor-pointer"
               />
-              <span className="text-sm font-bold text-[#1E293B] group-hover:text-emerald-600 transition-colors">Saya mendengar narator dengan jelas.</span>
+              <span className="text-sm font-bold text-[#1E293B] group-hover:text-emerald-600 transition-colors">{t('audioTestedSuccess')}</span>
             </label>
 
             <div className="flex items-center justify-center gap-4">
@@ -115,7 +118,7 @@ export const AudioCheck: React.FC = () => {
                 disabled={!audioTested}
                 className="px-8 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-sm shadow-emerald-600/20"
               >
-                Lanjut ke Petunjuk Ujian
+                {t('nextQuestionBtn') ? 'Lanjut ke Petunjuk Ujian' : 'Lanjut ke Petunjuk Ujian'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

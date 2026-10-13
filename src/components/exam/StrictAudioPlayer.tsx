@@ -8,6 +8,8 @@ interface StrictAudioPlayerProps {
   questionNumber?: number;
   partName?: string;
   isAlreadyPlayed?: boolean;
+  allowReplay?: boolean;
+  theme?: 'light' | 'warm' | 'dark';
 }
 
 export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
@@ -17,6 +19,8 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
   questionNumber,
   partName,
   isAlreadyPlayed = false,
+  allowReplay = false,
+  theme = 'light',
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -49,9 +53,13 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
   }, [autoPlay, hasPlayed, isAlreadyPlayed, duration, isPlaying]);
 
   const handlePlay = () => {
-    if (hasPlayed || isAlreadyPlayed || isPlaying) return;
+    if (!allowReplay && (hasPlayed || isAlreadyPlayed)) return;
+    if (isPlaying) return;
 
     if (audioRef.current) {
+      if (audioRef.current.ended) {
+        audioRef.current.currentTime = 0;
+      }
       audioRef.current
         .play()
         .then(() => {
@@ -101,8 +109,26 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
+  const containerThemeClass = theme === 'warm'
+    ? 'bg-[#FAF7F0] border-[#E2D9CC] text-[#3E2723]'
+    : theme === 'dark'
+    ? 'bg-[#1E293B] border-slate-700 text-slate-100'
+    : 'bg-emerald-50 border-emerald-200/90 text-slate-800';
+
+  const titleThemeClass = theme === 'dark'
+    ? 'text-slate-100'
+    : theme === 'warm'
+    ? 'text-[#3E2723]'
+    : 'text-slate-800';
+
+  const subThemeClass = theme === 'dark'
+    ? 'text-slate-300'
+    : theme === 'warm'
+    ? 'text-[#5D4037]'
+    : 'text-slate-600';
+
   return (
-    <div className="w-full bg-emerald-50 border border-emerald-200/90 rounded-xl lg:rounded-2xl p-4 sm:p-5 shadow-xs flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 transition-all">
+    <div className={`w-full border rounded-xl lg:rounded-2xl p-4 sm:p-5 shadow-xs flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 transition-all ${containerThemeClass}`}>
       <audio
         ref={audioRef}
         src={audioSrc}
@@ -116,16 +142,16 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
         <button
           type="button"
           onClick={handlePlay}
-          disabled={hasPlayed || isPlaying}
+          disabled={(!allowReplay && hasPlayed) || isPlaying}
           className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold transition-all shrink-0 ${
-            hasPlayed
+            !allowReplay && hasPlayed
               ? 'bg-slate-300 text-white cursor-not-allowed'
               : isPlaying
               ? 'bg-[#00a67c] text-white animate-pulse shadow-md cursor-not-allowed'
               : 'bg-[#00a67c] hover:bg-[#008f6b] text-white shadow-md cursor-pointer'
           }`}
         >
-          {hasPlayed ? (
+          {!allowReplay && hasPlayed ? (
             <CheckCircle2 className="w-6 h-6" />
           ) : isPlaying ? (
             <Volume2 className="w-6 h-6" />
@@ -136,13 +162,13 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
 
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-sm sm:text-base font-bold text-slate-800">
-              Audio Listening {questionNumber ? `Soal No. ${questionNumber}` : 'Berjalan'} (Strict 1x Play)
+            <span className={`text-sm sm:text-base font-bold ${titleThemeClass}`}>
+              Audio Listening {questionNumber ? `Soal No. ${questionNumber}` : 'Berjalan'} {allowReplay ? '(Mode Latihan)' : '(Strict 1x Play)'}
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-600 mt-0.5 flex items-center gap-2">
-            Status: {hasPlayed || isAlreadyPlayed ? 'Selesai diputar (Hanya 1x Putar)' : isPlaying ? `Sedang memutar audio soal ${questionNumber ? `no. ${questionNumber}` : ''}` : 'Siap diputar (1x Play)'}
-            <span className="font-mono text-emerald-700 font-bold">
+          <p className={`text-xs sm:text-sm mt-0.5 flex items-center gap-2 ${subThemeClass}`}>
+            Status: {!allowReplay && (hasPlayed || isAlreadyPlayed) ? 'Selesai diputar (Hanya 1x Putar)' : isPlaying ? `Sedang memutar audio soal ${questionNumber ? `no. ${questionNumber}` : ''}` : allowReplay ? 'Siap diputar (Boleh diulang)' : 'Siap diputar (1x Play)'}
+            <span className="font-mono text-emerald-600 font-bold">
                • {formatTime(currentTime)} / {formatTime(duration)}
             </span>
             {isPlaying && (
@@ -157,7 +183,7 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
         </div>
       </div>
 
-      <div className="hidden sm:flex items-center gap-2.5 text-xs sm:text-sm font-medium text-slate-600">
+      <div className={`hidden sm:flex items-center gap-2.5 text-xs sm:text-sm font-medium ${subThemeClass}`}>
         <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-700" />
         <span>Volume:</span>
         <input 

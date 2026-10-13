@@ -3,8 +3,12 @@ import { Server, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 
+import { useLanguage } from '../../services/languageContext';
+
 export const ProctorHeader: React.FC = () => {
   const location = useLocation();
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   const [currentTime, setCurrentTime] = useState(new Date());
   
   useEffect(() => {
@@ -13,10 +17,10 @@ export const ProctorHeader: React.FC = () => {
   }, []);
   
   const formatTime = (date: Date) => 
-    date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    date.toLocaleTimeString(isEn ? 'en-US' : 'id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const proctorInfoStr = localStorage.getItem('proctor_info');
-  const proctorName = (proctorInfoStr ? JSON.parse(proctorInfoStr)?.nama_lengkap : '') || 'Pengawas Utama';
+  const proctorName = (proctorInfoStr ? JSON.parse(proctorInfoStr)?.nama_lengkap : '') || (isEn ? 'Chief Proctor' : 'Pengawas Utama');
   const firstName = proctorName.split(' ')[0];
 
   const isDashboard = location.pathname === '/proctor/dashboard';
@@ -30,9 +34,14 @@ export const ProctorHeader: React.FC = () => {
     >
       {isDashboard ? (
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">Dashboard Live Monitoring</h1>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">
+            {isEn ? 'Live Monitoring Dashboard' : 'Dashboard Live Monitoring'}
+          </h1>
           <p className="text-slate-500 font-medium text-xs md:text-sm">
-            Selamat datang kembali, {firstName}! Pantau dan kelola ujian secara real-time.
+            {isEn 
+              ? `Welcome back, ${firstName}! Monitor and manage exams in real-time.`
+              : `Selamat datang kembali, ${firstName}! Pantau dan kelola ujian secara real-time.`
+            }
           </p>
         </div>
       ) : (

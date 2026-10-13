@@ -5,6 +5,7 @@ import {
   Settings, LogOut, 
   Key, BookOpen, FileText, MonitorPlay, Command, Users, Music
 } from 'lucide-react';
+import { useLanguage } from '../../services/languageContext';
 
 // ... (in SidebarProctorProps...)
 interface SidebarProctorProps {
@@ -13,6 +14,8 @@ interface SidebarProctorProps {
 
 export const SidebarProctor: React.FC<SidebarProctorProps> = ({ activePath }) => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   
   // Ambil state awal dari localStorage agar tidak reset saat pindah halaman
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -43,20 +46,20 @@ export const SidebarProctor: React.FC<SidebarProctorProps> = ({ activePath }) =>
   };
 
   const navItems = [
-    { path: '/proctor/dashboard', icon: MonitorPlay, title: 'Live Monitoring' },
-    { path: '/proctor/peserta', icon: Users, title: 'Data Peserta' },
-    { path: '/proctor/tokens', icon: Key, title: 'Sesi & Token' },
+    { path: '/proctor/dashboard', icon: MonitorPlay, title: isEn ? 'Live Monitoring' : 'Live Monitoring' },
+    { path: '/proctor/peserta', icon: Users, title: isEn ? 'Participants' : 'Data Peserta' },
+    { path: '/proctor/tokens', icon: Key, title: isEn ? 'Sessions & Tokens' : 'Sesi & Token' },
     { 
       path: '/proctor/bank', 
       icon: BookOpen, 
-      title: 'Bank Soal',
+      title: isEn ? 'Question Bank' : 'Bank Soal',
       subItems: [
-        { path: '/proctor/bank?section=1', title: '1. Listening' },
-        { path: '/proctor/bank?section=2', title: '2. Structure' },
-        { path: '/proctor/bank?section=3', title: '3. Reading' },
+        { path: '/proctor/bank?section=1', title: isEn ? '1. Listening' : '1. Listening' },
+        { path: '/proctor/bank?section=2', title: isEn ? '2. Structure' : '2. Structure' },
+        { path: '/proctor/bank?section=3', title: isEn ? '3. Reading' : '3. Reading' },
       ]
     },
-    { path: '/proctor/recap', icon: FileText, title: 'Laporan & Rekap' },
+    { path: '/proctor/recap', icon: FileText, title: isEn ? 'Reports & Scores' : 'Laporan & Rekap' },
   ];
 
   const [expandedItems, setExpandedItems] = useState<string[]>(() => {
@@ -217,7 +220,7 @@ export const SidebarProctor: React.FC<SidebarProctorProps> = ({ activePath }) =>
               ? 'bg-white text-slate-900 shadow-sm border border-white/60' 
               : 'text-slate-500 hover:bg-white/40 hover:text-slate-800'
           }`}
-          title="Pengaturan"
+          title={isEn ? "Settings" : "Pengaturan"}
         >
           <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0">
             <Settings className={`w-5 h-5 ${activePath === '/proctor/settings' ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-800'}`} strokeWidth={activePath === '/proctor/settings' ? 2.5 : 2} />
@@ -231,7 +234,7 @@ export const SidebarProctor: React.FC<SidebarProctorProps> = ({ activePath }) =>
                 transition={{ duration: 0.2 }}
                 className="font-semibold whitespace-nowrap overflow-hidden text-sm"
               >
-                Settings
+                {isEn ? 'Settings' : 'Pengaturan'}
               </motion.span>
             )}
           </AnimatePresence>
@@ -242,7 +245,7 @@ export const SidebarProctor: React.FC<SidebarProctorProps> = ({ activePath }) =>
           whileTap={{ scale: 0.98 }}
           onClick={handleLogout} 
           className={`h-12 w-full rounded-full flex items-center cursor-pointer transition-all duration-300 text-slate-500 hover:bg-rose-50 hover:text-rose-600 group relative ${isCollapsed ? 'justify-center' : 'px-1'}`}
-          title="Keluar"
+          title={isEn ? "Logout" : "Keluar"}
         >
           <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0">
             <LogOut className="w-5 h-5 text-slate-500 group-hover:text-rose-500 transition-colors" strokeWidth={2} />
@@ -256,7 +259,7 @@ export const SidebarProctor: React.FC<SidebarProctorProps> = ({ activePath }) =>
                 transition={{ duration: 0.2 }}
                 className="font-semibold whitespace-nowrap overflow-hidden text-sm"
               >
-                Logout
+                {isEn ? 'Logout' : 'Keluar'}
               </motion.span>
             )}
           </AnimatePresence>

@@ -1,0 +1,18 @@
+{
+  "serverIp": "192.168.0.110",
+  "serverPort": 5001,
+  "offlineMode": false,
+  "sebEnabled": false,
+  "blockMultiLogin": true,
+  "sebQuitPassword": "qwe1234",
+  "audioAutoPlay": true,
+  "strictOnePlay": true,
+  "requireAudioCheck": true,
+  "preloadAllAudio": true,
+  "language": "id",
+  "examFontSize": "normal",
+  "examTheme": "light",
+  "showQuestionGrid": true,
+  "compactView": false,
+  "updatedAt": "2026-10-13T13:46:10.289Z"
+}

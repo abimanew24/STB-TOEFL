@@ -5,15 +5,14 @@ import jwt from 'jsonwebtoken';
  */
 export function verifyProctorToken(req, res, next) {
   const authHeader = req.headers.authorization;
+  const token = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : req.query?.token;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     return res.status(401).json({
       error: 'Autentikasi Gagal',
       message: 'Token otorisasi pengawas tidak ditemukan.'
     });
   }
-
-  const token = authHeader.split(' ')[1];
   const jwtSecret = process.env.JWT_SECRET || 'stbtoefl_jwt_secret_key_2026_secure';
 
   try {

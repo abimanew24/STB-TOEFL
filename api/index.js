@@ -16,6 +16,15 @@ import { getSessions, createSession, toggleSessionStatus, broadcastTokenEmail, g
 import { getQuestions, createQuestion, getPassages, createPassage, handleAudioUpload, getAudioFiles, deleteAudioFile, clearAllAudioFiles, generateTtsAudio, setMasterAudio, updateQuestion, deleteQuestion, batchDeleteQuestions, updatePassage, deletePassage } from './controllers/questionController.js';
 import { prefetchQuestions, syncAnswers, submitExam } from './controllers/examController.js';
 import { getStudentScore, getScoreRecap } from './controllers/scoringController.js';
+import { 
+  getSystemSettings, 
+  saveSystemSettings, 
+  getPublicConfig, 
+  pingSystem, 
+  resetStudentSession, 
+  getActiveSessionsController, 
+  downloadSebConfigFile 
+} from './controllers/systemController.js';
 
 import pool from './database.js';
 
@@ -151,6 +160,17 @@ app.post('/api/exam/submit', verifySebHeader, verifyStudentToken, submitExam);
 app.get('/api/scores/student', verifyStudentToken, getStudentScore);
 app.get('/api/scores/recap', verifyProctorToken, getScoreRecap);
 
+// ============================================================
+// 6. ROUTE PENGATURAN SISTEM & JARINGAN (PORTAL PENGAWAS)
+// ============================================================
+app.get('/api/system/settings', verifyProctorToken, getSystemSettings);
+app.post('/api/system/settings', verifyProctorToken, saveSystemSettings);
+app.get('/api/system/public-config', getPublicConfig);
+app.get('/api/system/ping', pingSystem);
+app.post('/api/system/reset-session', verifyProctorToken, resetStudentSession);
+app.get('/api/system/active-sessions', verifyProctorToken, getActiveSessionsController);
+app.get('/api/system/download-seb-config', verifyProctorToken, downloadSebConfigFile);
+
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({
@@ -160,6 +180,31 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ============================================================
+// 7. FRONTEND SPA / LAN HANDLER
+// ============================================================
+const clientDist = path.join(__dirname, '../dist');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+}
+
+// Redirect atau serve index.html untuk akses browser via LAN agar tidak "Cannot GET /"
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/static')) {
+    return next();
+  }
+
+  // Jika build produksi tersedia dan aktif
+  if (process.env.NODE_ENV === 'production' && fs.existsSync(clientDist)) {
+    return res.sendFile(path.join(clientDist, 'index.html'));
+  }
+
+  // Di mode development (Vite), alihkan browser langsung ke port client 5173
+  const host = req.hostname;
+  return res.redirect(`http://${host}:5173${req.originalUrl}`);
+});
+
 app.listen(PORT, () => {
   console.log(`[API SERVER] Express running on http://localhost:${PORT}`);
 });
+
