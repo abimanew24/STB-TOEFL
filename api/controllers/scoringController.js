@@ -132,16 +132,18 @@ export async function getScoreRecap(req, res) {
   try {
     const { sesi_id } = req.query;
     let query = `
-      SELECT h.*, p.nomor_induk, p.nama_lengkap, p.email, s.nama_sesi
+      SELECT h.*, p.nomor_induk, p.nama_lengkap, p.email,
+             COALESCE(s.nama_sesi, 'Sesi 1') as nama_sesi,
+             COALESCE(h.sesi_id, p.sesi_id, 1) as sesi_id
       FROM hasil_ujian h
       JOIN pengguna p ON h.pengguna_id = p.id
-      JOIN sesi_ujian s ON h.sesi_id = s.id
+      LEFT JOIN sesi_ujian s ON (h.sesi_id = s.id OR (h.sesi_id IS NULL AND p.sesi_id = s.id))
     `;
     const params = [];
 
-    if (sesi_id) {
-      query += ` WHERE h.sesi_id = ?`;
-      params.push(parseInt(sesi_id, 10));
+    if (sesi_id && sesi_id !== 'all' && sesi_id !== 'Semua') {
+      query += ` WHERE (h.sesi_id = ? OR (h.sesi_id IS NULL AND p.sesi_id = ?))`;
+      params.push(parseInt(sesi_id, 10), parseInt(sesi_id, 10));
     }
 
     query += ` ORDER BY h.total_skor_toefl DESC`;
@@ -150,6 +152,39 @@ export async function getScoreRecap(req, res) {
     return res.json(rows);
   } catch (error) {
     console.error('[GET SCORE RECAP ERROR]', error);
+    return res.status(500).json({ error: 'Server Error', message: error.message });
+  }
+}
+
+/**
+ * DELETE /api/scores/:id
+ * Menghapus rekap hasil ujian mahasiswa (misal jika ingin reset/hapus hasil ujian)
+ */
+export async function deleteScoreRecord(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Ambil data hasil ujian terlebih dahulu
+    const [rows] = await pool.query(`SELECT * FROM hasil_ujian WHERE id = ?`, [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Hasil ujian tidak ditemukan' });
+    }
+    const record = rows[0];
+
+    // Hapus juga jawaban pada sesi terkait jika ada
+    if (record.pengguna_id && record.sesi_id) {
+      await pool.query(
+        `DELETE FROM jawaban_mahasiswa WHERE pengguna_id = ? AND sesi_id = ?`,
+        [record.pengguna_id, record.sesi_id]
+      );
+    }
+
+    // Hapus data hasil ujian
+    await pool.query(`DELETE FROM hasil_ujian WHERE id = ?`, [id]);
+
+    return res.json({ message: 'Hasil ujian berhasil dihapus' });
+  } catch (error) {
+    console.error('[DELETE SCORE ERROR]', error);
     return res.status(500).json({ error: 'Server Error', message: error.message });
   }
 }

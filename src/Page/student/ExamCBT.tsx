@@ -24,6 +24,11 @@ export const ExamCBT: React.FC = () => {
   const [countdown, setCountdown] = useState<number | null>(3);
   const [manualGridOpen, setManualGridOpen] = useState<boolean>(false);
   
+  // Anti-Cheating State: Tab-switch & blur detection
+  const [violationCount, setViolationCount] = useState<number>(0);
+  const [violationModalOpen, setViolationModalOpen] = useState<boolean>(false);
+  const MAX_VIOLATIONS = 3;
+  
   // Track audio play state per-question in Section 1 (Strict 1x Play yang persisten)
   const [playedAudioMap, setPlayedAudioMap] = useState<Record<number, boolean>>(() => {
     try {
@@ -243,6 +248,38 @@ export const ExamCBT: React.FC = () => {
     }
   };
 
+  // Anti-Cheating: Deteksi beralih tab & proteksi sebelum reload
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setViolationCount((prev) => {
+          const next = prev + 1;
+          setViolationModalOpen(true);
+          if (next >= MAX_VIOLATIONS) {
+            setTimeout(() => {
+              handleFinalSubmit();
+            }, 1000);
+          }
+          return next;
+        });
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Ujian TOEFL sedang berlangsung! Yakin ingin meninggalkan halaman?';
+      return e.returnValue;
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   const currentQuestion = questions[currentIndex];
   const currentAnswer = currentQuestion ? userAnswersMap[currentQuestion.id] : null;
 
@@ -309,29 +346,34 @@ export const ExamCBT: React.FC = () => {
     ? 'bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-700/60 text-emerald-300'
     : theme === 'warm'
     ? 'bg-[#ECE2D4] hover:bg-[#E2D4C3] border-[#D7C4AF] text-[#6D4C41]'
-    : 'bg-emerald-50 hover:bg-emerald-100/90 border-emerald-200 text-[#00a67c]';
+    : 'bg-teal-50 hover:bg-teal-100/90 border-teal-200 text-teal-700';
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans selection:bg-[#00a67c] selection:text-white transition-colors duration-200 ${pageThemeClass}`}>
-      {/* Header Matches Design exactly */}
-      <header className="sticky top-0 z-40 bg-[#00a67c] text-white px-6 py-4 flex flex-col md:flex-row items-center justify-between shadow-md gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-widest uppercase">STBTOEFL</span>
-          <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded border border-white/50 tracking-wider">
-            SEB LOCKED
-          </span>
-          {examUiSettings.offlineMode && (
-            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-emerald-300/60 bg-emerald-700/60 tracking-wider">
-              OFFLINE CACHED
+    <div className={`min-h-screen flex flex-col font-sans selection:bg-teal-600 selection:text-white transition-colors duration-200 ${pageThemeClass}`}>
+      {/* Header Matches Proctor Green Design & STIMIK Logo */}
+      <header className="sticky top-0 z-40 bg-teal-700 text-white px-6 py-3.5 flex flex-col md:flex-row items-center justify-between shadow-md gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 shadow-sm border border-white/20 overflow-hidden">
+            <img src="/8Tg9xjvN_400x400-removebg-preview.png" alt="Logo STIMIK" className="w-full h-full object-contain" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-bold tracking-widest uppercase">STBTOEFL</span>
+            <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded border border-white/50 tracking-wider">
+              SEB LOCKED
             </span>
-          )}
+            {examUiSettings.offlineMode && (
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-teal-300/60 bg-teal-800/80 tracking-wider text-teal-100">
+                OFFLINE CACHED
+              </span>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center gap-4">
           <span className="text-sm md:text-base font-medium">{getSectionName(activeSection)}</span>
-          <div className="flex items-center gap-2 border border-emerald-400 rounded-md px-3 py-1.5 bg-transparent">
+          <div className="flex items-center gap-2 border border-teal-400/60 rounded-md px-3 py-1.5 bg-teal-800/40">
             {/* simple icon */}
-            <svg className="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <svg className="w-4 h-4 text-teal-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span className="font-mono font-bold text-lg tracking-wider">
                <SectionTimer
                   durationSeconds={getSectionDuration()}
@@ -349,7 +391,7 @@ export const ExamCBT: React.FC = () => {
             <button
               type="button"
               onClick={() => setManualGridOpen(!manualGridOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700/80 hover:bg-emerald-800 text-white text-xs font-bold border border-emerald-400/50 transition-all cursor-pointer shadow-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold border border-teal-400/50 transition-all cursor-pointer shadow-xs"
               title="Buka / Tutup Palet Nomor Soal"
             >
               <LayoutGrid className="w-3.5 h-3.5" />
@@ -359,7 +401,7 @@ export const ExamCBT: React.FC = () => {
 
           <div className="hidden md:block">
             <p className="text-sm font-bold">{studentInfo?.nama_lengkap || 'Peserta'}</p>
-            <p className="text-[11px] text-emerald-200">
+            <p className="text-[11px] text-teal-100">
               NIM: {studentInfo?.nomor_induk || '21010042'} • Ruang Lab Utama
             </p>
           </div>
@@ -376,7 +418,7 @@ export const ExamCBT: React.FC = () => {
         <main className="flex-1 flex flex-col gap-6 min-w-0 justify-between">
           {questions.length === 0 ? (
             <div className={`text-center py-20 rounded-3xl border p-8 shadow-sm ${sidebarThemeClass}`}>
-              <AlertCircle className="w-12 h-12 text-[#00a67c] mx-auto mb-4 animate-bounce" />
+              <AlertCircle className="w-12 h-12 text-teal-600 mx-auto mb-4 animate-bounce" />
               <h3 className={`text-lg font-bold ${sidebarTitleClass}`}>Memuat Instrumen Soal Ujian...</h3>
             </div>
           ) : (
@@ -445,7 +487,7 @@ export const ExamCBT: React.FC = () => {
                 {currentIndex < questions.length - 1 ? (
                   <button
                     onClick={() => handleNavigateToQuestion(Math.min(questions.length - 1, currentIndex + 1))}
-                    className="px-6 sm:px-9 py-3 rounded-xl text-sm sm:text-base font-semibold transition-all bg-[#00a67c] hover:bg-[#008f6b] text-white shadow-sm hover:shadow cursor-pointer"
+                    className="px-6 sm:px-9 py-3 rounded-xl text-sm sm:text-base font-semibold transition-all bg-teal-600 hover:bg-teal-700 text-white shadow-sm hover:shadow cursor-pointer"
                   >
                     {t('nextQuestionBtn')}
                   </button>
@@ -458,7 +500,7 @@ export const ExamCBT: React.FC = () => {
                       handleNextSection(false);
                     }}
                     disabled={isSubmitting}
-                    className="px-6 sm:px-9 py-3 rounded-xl text-sm sm:text-base font-semibold transition-all bg-[#00a67c] hover:bg-[#008f6b] text-white shadow-sm hover:shadow cursor-pointer"
+                    className="px-6 sm:px-9 py-3 rounded-xl text-sm sm:text-base font-semibold transition-all bg-teal-600 hover:bg-teal-700 text-white shadow-sm hover:shadow cursor-pointer"
                   >
                     {t('finishSectionBtn')} →
                   </button>
@@ -496,7 +538,7 @@ export const ExamCBT: React.FC = () => {
                 if (isFlagged) {
                   btnClass = 'bg-amber-500 text-white font-bold border-amber-500 shadow-xs';
                 } else if (isAnswered) {
-                  btnClass = 'bg-[#00a67c] text-white font-bold border-[#00a67c] shadow-xs';
+                  btnClass = 'bg-teal-600 text-white font-bold border-teal-600 shadow-xs';
                 }
                 
                 if (isCurrent && !isAnswered && !isFlagged) {
@@ -504,18 +546,20 @@ export const ExamCBT: React.FC = () => {
                     ? 'bg-[#0F172A] border-2 border-emerald-400 text-emerald-400 font-bold shadow-xs'
                     : theme === 'warm'
                     ? 'bg-[#FAF7F0] border-2 border-[#8D5B4C] text-[#8D5B4C] font-bold shadow-xs'
-                    : 'bg-white border-2 border-[#00a67c] text-[#00a67c] font-bold shadow-xs';
+                    : 'bg-white border-2 border-teal-600 text-teal-700 font-bold shadow-xs';
                 } else if (isCurrent) {
-                  btnClass += ' ring-2 ring-offset-2 ring-[#00a67c] font-black scale-105';
+                  btnClass += ' ring-2 ring-offset-2 ring-teal-600 font-black scale-105';
                 }
 
                 return (
                   <button
                     key={q.id}
                     onClick={() => handleNavigateToQuestion(index)}
-                    className={`h-10 sm:h-11 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center cursor-pointer ${btnClass}`}
+                    className={`h-10 sm:h-11 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center text-center select-none leading-none cursor-pointer ${btnClass}`}
                   >
-                    {index + 1}
+                    <span className="flex items-center justify-center text-center leading-none select-none">
+                      {index + 1}
+                    </span>
                   </button>
                 );
               })}
@@ -557,10 +601,57 @@ export const ExamCBT: React.FC = () => {
             </p>
             <button
               onClick={() => setIncompleteModalOpen(false)}
-              className="w-full py-3.5 bg-[#00a67c] hover:bg-[#008f6b] text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md shadow-teal-700/20 transition-all active:scale-[0.98] cursor-pointer"
             >
               {t('backToExamBtn')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Anti-Cheating Violation Warning Modal */}
+      {violationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-2 border-rose-500 flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 ring-8 ring-rose-50">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            
+            <h3 className="text-xl font-black text-slate-900 mb-2">
+              Peringatan Integritas Ujian!
+            </h3>
+            
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+              Anda terdeteksi beralih dari jendela / tab ujian! Tindakan ini dilarang selama sesi ujian TOEFL berlangsung.
+            </p>
+
+            <div className="w-full bg-rose-50 border border-rose-200 rounded-2xl p-4 mb-6">
+              <div className="flex items-center justify-between text-xs font-bold text-rose-800 mb-1.5">
+                <span>Pelanggaran Terdeteksi</span>
+                <span className="text-sm font-black">{violationCount} / {MAX_VIOLATIONS}</span>
+              </div>
+              <div className="w-full h-2 bg-rose-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-rose-600 rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, (violationCount / MAX_VIOLATIONS) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-rose-700/80 text-left mt-2">
+                {violationCount >= MAX_VIOLATIONS 
+                  ? 'Batas pelanggaran telah terlampaui. Ujian Anda otomatis dikumpulkan secara paksa!'
+                  : `Peringatan: Jika mencapai ${MAX_VIOLATIONS} kali, sistem akan mengumpulkan ujian Anda secara otomatis.`}
+              </p>
+            </div>
+
+            {violationCount < MAX_VIOLATIONS && (
+              <button
+                type="button"
+                onClick={() => setViolationModalOpen(false)}
+                className="w-full py-3.5 px-6 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-all shadow-lg shadow-rose-600/25 active:scale-98 cursor-pointer"
+              >
+                Saya Mengerti & Kembali ke Ujian
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -618,7 +709,7 @@ const QuestionPanelLight: React.FC<QuestionPanelLightProps> = ({
     ? 'text-[#8D5B4C] bg-[#FAF7F0] border-2 border-[#8D5B4C]'
     : theme === 'dark'
     ? 'text-emerald-400 bg-[#0F172A] border-2 border-emerald-500'
-    : 'text-[#00a67c] bg-white border-2 border-[#00a67c]';
+    : 'text-teal-700 bg-teal-50 border-2 border-teal-600';
 
   const questionTextClass = fontSize === 'large'
     ? 'text-lg sm:text-xl lg:text-2xl font-semibold leading-relaxed mb-4 lg:mb-6'
@@ -682,8 +773,8 @@ const QuestionPanelLight: React.FC<QuestionPanelLightProps> = ({
             }
           } else {
             if (isSelected) {
-              optContainer = 'bg-emerald-50/70 border-[#00a67c] text-slate-900 shadow-xs ring-1 ring-[#00a67c]';
-              letterClass = 'bg-[#00a67c] text-white shadow-xs';
+              optContainer = 'bg-teal-50/80 border-teal-600 text-slate-900 shadow-xs ring-1 ring-teal-600';
+              letterClass = 'bg-teal-600 text-white shadow-xs';
             } else {
               optContainer = 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50/50';
               letterClass = 'bg-slate-100 text-slate-500';
@@ -696,8 +787,10 @@ const QuestionPanelLight: React.FC<QuestionPanelLightProps> = ({
               onClick={() => onSelectOption(opt.letter)}
               className={`relative border-2 transition-all cursor-pointer flex items-center ${optionPadding} ${optContainer}`}
             >
-              <div className={`rounded-full flex items-center justify-center font-bold shrink-0 transition-colors ${optionCircle} ${letterClass}`}>
-                {opt.letter}
+              <div className={`rounded-full flex items-center justify-center font-black shrink-0 transition-colors select-none leading-none ${optionCircle} ${letterClass}`}>
+                <span className="flex items-center justify-center text-center leading-none select-none">
+                  {opt.letter}
+                </span>
               </div>
               <div className={`flex-1 font-medium ${optionTextClass}`}>{opt.text}</div>
               {isSelected && (
@@ -706,7 +799,7 @@ const QuestionPanelLight: React.FC<QuestionPanelLightProps> = ({
                     ? 'text-emerald-400 border-emerald-500 bg-[#0F172A]' 
                     : theme === 'warm'
                     ? 'text-[#8D5B4C] border-[#8D5B4C] bg-[#FAF7F0]'
-                    : 'text-[#00a67c] border-[#00a67c] bg-white'
+                    : 'text-teal-700 border-teal-600 bg-white'
                 }`}>
                   <Check className="w-3.5 h-3.5 stroke-[3]" /> TERPILIH
                 </div>

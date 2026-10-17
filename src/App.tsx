@@ -21,11 +21,13 @@ import { AudioManager } from './Page/proctor/AudioManager';
 // Error Page
 import { SebForbidden } from './Page/error/SebForbidden';
 import { LanguageProvider } from './services/languageContext';
+import { ThemeProvider } from './services/themeContext';
 
 export default function App() {
   return (
     <LanguageProvider>
-      <BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
         <Routes>
         {/* Student Exam Routes */}
         <Route path="/" element={<Navigate to="/student/login" replace />} />
@@ -40,6 +42,7 @@ export default function App() {
         <Route path="/proctor/dashboard" element={<DashboardProctor />} />
         <Route path="/proctor/peserta" element={<ParticipantManager />} />
         <Route path="/proctor/tokens" element={<TokenManager />} />
+        <Route path="/proctor/token" element={<Navigate to="/proctor/tokens" replace />} />
         <Route path="/proctor/bank" element={<QuestionBank />} />
         <Route path="/proctor/audio" element={<AudioManager />} />
         <Route path="/proctor/recap" element={<ScoreRecap />} />
@@ -51,7 +54,8 @@ export default function App() {
         {/* Catch All Fallback */}
         <Route path="*" element={<Navigate to="/student/login" replace />} />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ThemeProvider>
   </LanguageProvider>
   );
 }

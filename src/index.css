@@ -30,14 +30,197 @@
   border-radius: 4px;
 }
 
-.dark ::-webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb,
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: #334155;
+}
+
+.theme-warm ::-webkit-scrollbar-thumb,
+[data-theme="warm"] ::-webkit-scrollbar-thumb {
+  background: #d5c7b3;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
-.dark ::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+.theme-warm ::-webkit-scrollbar-thumb:hover,
+[data-theme="warm"] ::-webkit-scrollbar-thumb:hover {
+  background: #bfaea2;
+}
+
+/* ==========================================================================
+   PROCTOR EYE-CARE THEME SYSTEM (NON-DESTRUCTIVE & FULLY COMPATIBLE)
+   ========================================================================== */
+
+/* 1. DARK MODE (REDUP MALAM ANTI-SILAU) */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] div[class*="bg-[url('/bg-proctor.jpg')]"] {
+  background-color: #0b1120;
+  background-image: 
+    radial-gradient(circle at 12% 15%, rgba(15, 23, 42, 0.94) 0%, transparent 60%),
+    radial-gradient(circle at 88% 85%, rgba(30, 41, 59, 0.90) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(11, 17, 32, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%),
+    url('/bg-proctor.jpg');
+}
+
+[data-theme="dark"] .bg-white\/40,
+[data-theme="dark"] .bg-white\/50,
+[data-theme="dark"] .bg-white\/60,
+[data-theme="dark"] .bg-white\/70 {
+  background-color: rgba(15, 23, 42, 0.75);
+  border-color: rgba(51, 65, 85, 0.5);
+}
+
+[data-theme="dark"] .bg-white\/80,
+[data-theme="dark"] .bg-white\/90,
+[data-theme="dark"] .bg-white\/95 {
+  background-color: rgba(15, 23, 42, 0.92);
+  border-color: rgba(51, 65, 85, 0.6);
+}
+
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3, 
+[data-theme="dark"] h4, 
+[data-theme="dark"] h5, 
+[data-theme="dark"] h6 {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-700 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-500 {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .border-slate-200 {
+  border-color: #334155;
+}
+
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: rgba(15, 23, 42, 0.85);
+  border-color: rgba(71, 85, 105, 0.65);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #64748b;
+}
+
+[data-theme="dark"] table th {
+  background-color: transparent;
+  color: #94a3b8;
+  border-color: rgba(51, 65, 85, 0.5);
+}
+
+[data-theme="dark"] table td {
+  border-color: rgba(51, 65, 85, 0.4);
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] table tr:hover td {
+  background-color: rgba(51, 65, 85, 0.25);
+}
+
+
+/* 2. WARM MODE (LEMBUT MATA SEPIA EYE-CARE) */
+[data-theme="warm"],
+.theme-warm,
+[data-theme="warm"] body,
+.theme-warm body {
+  background-color: #f7f3eb;
+  color: #3e2723;
+}
+
+[data-theme="warm"] div[class*="bg-[url('/bg-proctor.jpg')]"] {
+  background-color: #f7f3eb;
+  background-image: 
+    radial-gradient(circle at 12% 15%, rgba(254, 250, 242, 0.88) 0%, transparent 60%),
+    radial-gradient(circle at 88% 85%, rgba(243, 235, 222, 0.88) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(247, 243, 235, 0.90) 0%, rgba(242, 235, 224, 0.94) 100%),
+    url('/bg-proctor.jpg');
+}
+
+[data-theme="warm"] .bg-white\/40,
+[data-theme="warm"] .bg-white\/50,
+[data-theme="warm"] .bg-white\/60,
+[data-theme="warm"] .bg-white\/70 {
+  background-color: rgba(254, 252, 248, 0.88);
+  border-color: rgba(226, 216, 201, 0.75);
+}
+
+[data-theme="warm"] .bg-white\/80,
+[data-theme="warm"] .bg-white\/90,
+[data-theme="warm"] .bg-white\/95 {
+  background-color: rgba(254, 252, 248, 0.96);
+  border-color: rgba(226, 216, 201, 0.85);
+}
+
+[data-theme="warm"] h1, 
+[data-theme="warm"] h2, 
+[data-theme="warm"] h3, 
+[data-theme="warm"] h4, 
+[data-theme="warm"] h5, 
+[data-theme="warm"] h6 {
+  color: #3e2723;
+}
+
+[data-theme="warm"] .text-slate-800,
+[data-theme="warm"] .text-slate-900,
+[data-theme="warm"] .text-slate-700 {
+  color: #3e2723;
+}
+
+[data-theme="warm"] .text-slate-600,
+[data-theme="warm"] .text-slate-500 {
+  color: #795548;
+}
+
+[data-theme="warm"] .border-slate-200 {
+  border-color: #e5dacb;
+}
+
+[data-theme="warm"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="warm"] select,
+[data-theme="warm"] textarea {
+  background-color: #fffdf9;
+  border-color: #d8ccba;
+  color: #3e2723;
+}
+
+[data-theme="warm"] input::placeholder,
+[data-theme="warm"] textarea::placeholder {
+  color: #a19082;
+}
+
+[data-theme="warm"] table th {
+  background-color: transparent;
+  color: #5d4037;
+  border-color: rgba(220, 208, 190, 0.7);
+}
+
+[data-theme="warm"] table td {
+  border-color: rgba(230, 220, 205, 0.6);
+  color: #3e2723;
+}
+
+[data-theme="warm"] table tr:hover td {
+  background-color: rgba(245, 238, 227, 0.6);
 }

@@ -12,8 +12,8 @@ export const AudioCheck: React.FC = () => {
   const [audioTested, setAudioTested] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Sumber audio lokal offline dari server LAN CBT
-  const demoAudioSrc = '/static/audio/question 1.wav';
+  // Sumber sampel audio uji coba lokal (bukan soal ujian)
+  const demoAudioSrc = '/audio-sample.mp3';
 
   useEffect(() => {
     if (audioRef.current) {
@@ -21,8 +21,37 @@ export const AudioCheck: React.FC = () => {
     }
   }, [volume]);
 
+  const playSynthFallback = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.25 * volume, ctx.currentTime + idx * 0.35);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.35 + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.35);
+        osc.stop(ctx.currentTime + idx * 0.35 + 0.6);
+      });
+      setIsPlaying(true);
+      setTimeout(() => setIsPlaying(false), 2000);
+    } catch (e) {
+      console.error(e);
+      setIsPlaying(false);
+    }
+  };
+
   const togglePlay = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      playSynthFallback();
+      return;
+    }
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -30,9 +59,8 @@ export const AudioCheck: React.FC = () => {
       audioRef.current.play().then(() => {
         setIsPlaying(true);
       }).catch(err => {
-        console.error('Audio play failed:', err);
-        alert('Gagal memutar audio. Pastikan perangkat audio/headset Anda terhubung dengan baik.');
-        setIsPlaying(false);
+        console.warn('Audio play failed, playing fallback chime:', err);
+        playSynthFallback();
       });
     }
   };
@@ -59,7 +87,17 @@ export const AudioCheck: React.FC = () => {
 
           {/* Minimalist Audio Player */}
           <div className="flex flex-col items-center gap-6">
-            <audio ref={audioRef} src={demoAudioSrc} onEnded={handleEnded} className="hidden" />
+            <audio 
+              ref={audioRef} 
+              src={demoAudioSrc} 
+              onEnded={handleEnded} 
+              onError={() => {
+                if (audioRef.current && !audioRef.current.src.includes('audio-test-tone.wav')) {
+                  audioRef.current.src = '/audio-test-tone.wav';
+                }
+              }}
+              className="hidden" 
+            />
             
             <div className="flex items-center gap-6 w-full max-w-lg bg-[#F8FAFC] p-4 pr-6 rounded-full border border-[#E2E8F0]">
               <button 
@@ -97,7 +135,7 @@ export const AudioCheck: React.FC = () => {
               </div>
             </div>
             
-            <p className="text-xs font-bold text-slate-400">Sampel suara lokal dapat diputar berulang kali.</p>
+            <p className="text-xs font-bold text-slate-400">Sampel suara musik/nada uji coba dapat diputar berulang kali.</p>
           </div>
 
           {/* Actions & Confirmation */}

@@ -21,10 +21,15 @@ export async function getSessions(req, res) {
   try {
     const [rows] = await pool.query(
       `SELECT s.*, 
-        (SELECT COUNT(DISTINCT pengguna_id) FROM jawaban_mahasiswa WHERE sesi_id = s.id) as total_peserta,
+        (SELECT COUNT(*) FROM pengguna WHERE peran = 'mahasiswa' AND (sesi_id = s.id OR (sesi_id IS NULL AND s.id = 1))) as total_peserta,
+        (SELECT COUNT(DISTINCT j.pengguna_id) 
+           FROM jawaban_mahasiswa j 
+          WHERE j.sesi_id = s.id 
+            AND j.pengguna_id NOT IN (SELECT h.pengguna_id FROM hasil_ujian h WHERE h.sesi_id = s.id)
+        ) as total_mengerjakan,
         (SELECT COUNT(*) FROM hasil_ujian WHERE sesi_id = s.id) as total_selesai
        FROM sesi_ujian s 
-       ORDER BY s.id DESC`
+       ORDER BY s.id ASC`
     );
     return res.json(rows);
   } catch (error) {
@@ -177,20 +182,44 @@ export async function broadcastTokenEmail(req, res) {
  */
 export async function getDashboardStats(req, res) {
   try {
-    // 1. Get active session
-    const [activeSessions] = await pool.query(`SELECT * FROM sesi_ujian WHERE status_aktif = 1 ORDER BY id DESC LIMIT 1`);
-    const activeSession = activeSessions.length > 0 ? activeSessions[0] : null;
-    
-    // 2. Average score
-    const [scoreData] = await pool.query(`SELECT AVG(total_skor_toefl) as average_score FROM hasil_ujian`);
+    const { sesi_id } = req.query;
+
+    // 1. Get all sessions
+    const [allSessions] = await pool.query(
+      `SELECT s.id, s.nama_sesi, s.token, s.status_aktif,
+        (SELECT COUNT(*) FROM pengguna WHERE peran = 'mahasiswa' AND (sesi_id = s.id OR (sesi_id IS NULL AND s.id = 1))) as total_peserta
+       FROM sesi_ujian s 
+       ORDER BY s.id ASC`
+    );
+
+    // 2. Determine target session
+    let targetSession = null;
+    if (sesi_id && sesi_id !== 'all') {
+      targetSession = allSessions.find(s => String(s.id) === String(sesi_id));
+    }
+    if (!targetSession) {
+      targetSession = allSessions.find(s => s.status_aktif === 1) || allSessions[0] || null;
+    }
+
+    // 3. Average score
+    let avgQuery = `SELECT AVG(total_skor_toefl) as average_score FROM hasil_ujian`;
+    let avgParams = [];
+    if (targetSession) {
+      avgQuery += ` WHERE sesi_id = ?`;
+      avgParams.push(targetSession.id);
+    }
+    const [scoreData] = await pool.query(avgQuery, avgParams);
     const averageScore = scoreData[0].average_score ? parseFloat(scoreData[0].average_score).toFixed(2) : 0;
 
-    // 3. Total connected & Live participants
+    // 4. Total connected & Live participants
     let totalConnected = 0;
     let liveParticipants = [];
 
-    if (activeSession) {
-      const [connectedData] = await pool.query(`SELECT COUNT(DISTINCT pengguna_id) as total FROM jawaban_mahasiswa WHERE sesi_id = ?`, [activeSession.id]);
+    if (targetSession) {
+      const [connectedData] = await pool.query(
+        `SELECT COUNT(DISTINCT pengguna_id) as total FROM jawaban_mahasiswa WHERE sesi_id = ?`, 
+        [targetSession.id]
+      );
       totalConnected = connectedData[0].total;
 
       const [participants] = await pool.query(`
@@ -202,7 +231,8 @@ export async function getDashboardStats(req, res) {
         JOIN bank_soal bs ON jm.soal_id = bs.id
         WHERE jm.sesi_id = ?
         GROUP BY p.id
-      `, [activeSession.id]);
+        ORDER BY p.id DESC
+      `, [targetSession.id]);
 
       liveParticipants = participants.map(p => {
         let sectionName = 'Listening';
@@ -218,22 +248,52 @@ export async function getDashboardStats(req, res) {
           seb: 'Verified'
         };
       });
-    } else {
-      // Fallback to fetch some participants if no active session just to not be totally empty, or just return empty.
-      // We will return empty for real scenario.
     }
 
     return res.json({
-      totalConnected,
-      activeSession: activeSession ? activeSession.token : 'None',
-      currentSection: activeSession ? 'On Progress' : '-',
+      targetSessionId: targetSession ? targetSession.id : null,
+      targetSessionName: targetSession ? targetSession.nama_sesi : 'Semua Sesi',
+      activeSession: targetSession ? targetSession.nama_sesi : 'None',
+      sessionToken: targetSession ? targetSession.token : '-',
+      isStatusAktif: targetSession ? Boolean(targetSession.status_aktif) : false,
+      currentSection: targetSession ? 'On Progress' : '-',
       sebIntegrity: '100% Safe',
       averageScore,
       totalAnomalies: 0,
-      liveParticipants
+      liveParticipants,
+      allSessions
     });
   } catch (error) {
     console.error('[GET DASHBOARD STATS ERROR]', error);
+    return res.status(500).json({ error: 'Server Error', message: error.message });
+  }
+}
+
+/**
+ * DELETE /api/sessions/:id
+ * Menghapus sesi ujian jika tidak diperlukan
+ */
+export async function deleteSession(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Cek apakah sesi ada
+    const [existing] = await pool.query(`SELECT * FROM sesi_ujian WHERE id = ?`, [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Sesi Tidak Ditemukan', message: 'Sesi tidak ditemukan atau sudah dihapus.' });
+    }
+
+    // Pastikan tidak menghapus jika hanya tersisa 1 sesi di database
+    const [all] = await pool.query(`SELECT COUNT(*) as total FROM sesi_ujian`);
+    if (all[0].total <= 1) {
+      return res.status(400).json({ error: 'Operasi Ditolak', message: 'Tidak dapat menghapus sesi terakhir. Minimal harus ada 1 sesi ujian di sistem.' });
+    }
+
+    await pool.query(`DELETE FROM sesi_ujian WHERE id = ?`, [id]);
+
+    return res.json({ message: `Sesi '${existing[0].nama_sesi}' berhasil dihapus.` });
+  } catch (error) {
+    console.error('[DELETE SESSION ERROR]', error);
     return res.status(500).json({ error: 'Server Error', message: error.message });
   }
 }

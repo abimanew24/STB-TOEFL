@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Server, Shield, Volume2, Globe, FileText, ToggleLeft, ToggleRight, Settings,
   Check, Copy, RefreshCw, Activity, Cpu, HardDrive, Wifi, Save, CheckCircle2,
   AlertCircle, ExternalLink, Radio, Laptop, Eye, EyeOff, Download, Users,
   UserX, ShieldCheck, KeyRound, Lock, Unlock, X, Headphones, Music, PlayCircle,
-  RotateCcw, Sliders, Palette, Type, LayoutGrid, Sun, Moon, Coffee, Languages, Sparkles
+  RotateCcw, Sliders, Palette, Type, LayoutGrid, Sun, Moon, Coffee, Languages, Sparkles,
+  Clock, UserCheck
 } from 'lucide-react';
 import { SidebarProctor } from '../../components/common/SidebarProctor';
 import { ProctorHeader } from '../../components/proctor/ProctorHeader';
 import api from '../../services/api';
 import { useLanguage } from '../../services/languageContext';
+import { useTheme } from '../../services/themeContext';
 
 interface NetworkInterface {
   name: string;
@@ -43,11 +45,49 @@ interface ActiveStudentSession {
 
 export const SettingsProctor: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
   const { language, setLanguage, setLanguageSilent, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState('server');
+  const isEn = language === 'en';
+  const [activeTab, setActiveTab] = useState(tabFromUrl || 'profile');
+
+  useEffect(() => {
+    if (tabFromUrl && ['profile', 'server', 'security', 'audio', 'ui'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Proctor Profile & Live Time State (Moved from Header)
+  const [proctorInfo, setProctorInfo] = useState(() => {
+    try {
+      const raw = localStorage.getItem('proctor_info');
+      return raw ? JSON.parse(raw) : { nama_lengkap: 'Dosen Pengawas Utama', nomor_induk: 'admin' };
+    } catch {
+      return { nama_lengkap: 'Dosen Pengawas Utama', nomor_induk: 'admin' };
+    }
+  });
+  const [proctorNameInput, setProctorNameInput] = useState(proctorInfo?.nama_lengkap || 'Dosen Pengawas Utama');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleSaveProfile = () => {
+    const updated = { ...proctorInfo, nama_lengkap: proctorNameInput.trim() || 'Dosen Pengawas Utama' };
+    setProctorInfo(updated);
+    localStorage.setItem('proctor_info', JSON.stringify(updated));
+    setSaveStatus({
+      type: 'success',
+      message: 'Profil pengawas berhasil diperbarui!'
+    });
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
 
   // Network & Server State
   const [serverIp, setServerIp] = useState('127.0.0.1');
@@ -71,11 +111,9 @@ export const SettingsProctor: React.FC = () => {
   const [copiedPassword, setCopiedPassword] = useState(false);
 
   // UI & Language State
+  const { theme: examTheme, setTheme, setThemeSilent } = useTheme();
   const [examFontSize, setExamFontSize] = useState<'normal' | 'medium' | 'large'>(() => {
     return (localStorage.getItem('stbtoefl_font_size') as any) || 'normal';
-  });
-  const [examTheme, setExamTheme] = useState<'light' | 'warm' | 'dark'>(() => {
-    return (localStorage.getItem('stbtoefl_theme') as any) || 'light';
   });
   const [showQuestionGrid, setShowQuestionGrid] = useState(true);
   const [compactView, setCompactView] = useState(false);
@@ -90,6 +128,33 @@ export const SettingsProctor: React.FC = () => {
   const [isPinging, setIsPinging] = useState(false);
   const [pingLatency, setPingLatency] = useState<number | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [downloadingBackup, setDownloadingBackup] = useState(false);
+
+  const handleDownloadBackup = async () => {
+    try {
+      setDownloadingBackup(true);
+      const token = localStorage.getItem('proctor_token');
+      const response = await fetch('/api/system/backup-db', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Gagal mengunduh backup dari server');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `stbtoefl_backup_${new Date().toISOString().slice(0, 10)}.sql`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('Gagal mendownload backup: ' + err.message);
+    } finally {
+      setDownloadingBackup(false);
+    }
+  };
 
   // Load Settings from Server
   const fetchSettings = async () => {
@@ -119,7 +184,7 @@ export const SettingsProctor: React.FC = () => {
           setLanguageSilent(settings.language as 'id' | 'en');
         }
         if (settings.examFontSize) setExamFontSize(settings.examFontSize as 'normal' | 'medium' | 'large');
-        if (settings.examTheme) setExamTheme(settings.examTheme as 'light' | 'warm' | 'dark');
+        if (settings.examTheme) setThemeSilent(settings.examTheme as 'light' | 'warm' | 'dark');
         if (settings.showQuestionGrid !== undefined) setShowQuestionGrid(Boolean(settings.showQuestionGrid));
         if (settings.compactView !== undefined) setCompactView(Boolean(settings.compactView));
       }
@@ -233,38 +298,16 @@ export const SettingsProctor: React.FC = () => {
 
   // Instant Theme Switcher & Auto-Sync
   const handleThemeChange = async (newTheme: 'light' | 'warm' | 'dark') => {
-    setExamTheme(newTheme);
-    localStorage.setItem('stbtoefl_theme', newTheme);
-    try {
-      await api.post('/system/settings', {
-        serverIp: serverIp.trim(),
-        serverPort: parseInt(String(serverPort), 10) || 5001,
-        offlineMode: toggles.offlineMode,
-        sebEnabled: toggles.sebEnabled,
-        blockMultiLogin: toggles.blockMultiLogin,
-        sebQuitPassword: sebQuitPassword.trim(),
-        audioAutoPlay: toggles.audioAutoPlay,
-        strictOnePlay: toggles.strictOnePlay,
-        requireAudioCheck: toggles.requireAudioCheck,
-        preloadAllAudio: toggles.preloadAllAudio,
-        language,
-        examFontSize,
-        examTheme: newTheme,
-        showQuestionGrid,
-        compactView,
-      });
-      setSaveStatus({
-        type: 'success',
-        message: newTheme === 'warm' 
-          ? 'Tema Lembut Mata (Sepia) aktif! Latar hangat diterapkan pada layar ujian.'
-          : newTheme === 'dark' 
-          ? 'Tema Redup Malam (Dark) aktif! Latar gelap anti-silau diterapkan.'
-          : 'Tema Terang Bersih (Light) aktif! Standar ruang lab diterapkan.'
-      });
-      setTimeout(() => setSaveStatus(null), 3000);
-    } catch (e) {
-      console.warn('[THEME SAVE ERROR]', e);
-    }
+    await setTheme(newTheme);
+    setSaveStatus({
+      type: 'success',
+      message: newTheme === 'warm' 
+        ? 'Tema Lembut Mata (Sepia) aktif! Latar hangat diterapkan pada modul & halaman pengawas serta ujian.'
+        : newTheme === 'dark' 
+        ? 'Tema Redup Malam (Dark) aktif! Latar gelap anti-silau diterapkan pada modul & halaman pengawas serta ujian.'
+        : 'Tema Terang Bersih (Light) aktif! Standar ruang lab diterapkan pada modul & halaman pengawas serta ujian.'
+    });
+    setTimeout(() => setSaveStatus(null), 3000);
   };
 
   // Reset Student Session
@@ -341,6 +384,7 @@ export const SettingsProctor: React.FC = () => {
   };
 
   const tabs = [
+    { id: 'profile', icon: UserCheck, label: t('tabProfile') },
     { id: 'server', icon: Server, label: t('tabServer') },
     { id: 'security', icon: Shield, label: t('tabSecurity') },
     { id: 'audio', icon: Volume2, label: t('tabAudio') },
@@ -408,6 +452,210 @@ export const SettingsProctor: React.FC = () => {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* TAB 0: PROFIL PENGAWAS & STATUS SERVER (DIPINDAHKAN DARI HEADBAR) */}
+                {activeTab === 'profile' && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }} className="space-y-6">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-800">
+                          {isEn ? 'Proctor Profile & System Status' : 'Profil Pengawas & Status Sistem'}
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {isEn 
+                            ? 'Manage chief proctor credentials, monitor live LAN network adapter, and check active server time.'
+                            : 'Kelola identitas pengawas utama, pantau adapter jaringan LAN aktif, dan periksa waktu sistem server.'
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Section 1: Profil Identitas Pengawas */}
+                    <div className="p-6 md:p-8 bg-white/60 border border-white/50 rounded-3xl shadow-sm space-y-6">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                        <div className="relative">
+                          <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-100 flex items-center justify-center">
+                            <img 
+                              src={`https://api.dicebear.com/7.x/notionists/svg?seed=${(proctorNameInput.split(' ')[0] || 'Proctor')}&backgroundColor=e2e8f0`} 
+                              alt="Avatar" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                          <span className="absolute bottom-1 right-1 w-5 h-5 bg-emerald-500 border-2 border-white rounded-full shadow-sm" title="Online & Terverifikasi" />
+                        </div>
+
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xl font-bold text-slate-800">{proctorInfo?.nama_lengkap || 'Dosen Pengawas Utama'}</h4>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Verified Proctor
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            NIP / Username Login: <strong className="text-slate-700">{proctorInfo?.nomor_induk || proctorInfo?.username || 'admin'}</strong>
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Hak Akses: <span className="font-semibold text-teal-700">Chief Proctor (Pengawas Utama Ruang CBT)</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-200/60 pt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-slate-600 block mb-1.5">
+                            Nama Lengkap Pengawas (Tampil di Layar Ujian & Header):
+                          </label>
+                          <input 
+                            type="text" 
+                            value={proctorNameInput} 
+                            onChange={(e) => setProctorNameInput(e.target.value)}
+                            placeholder="Contoh: Dosen Pengawas Utama, M.Kom"
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={handleSaveProfile}
+                            className="w-full sm:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Save className="w-4 h-4" />
+                            Simpan Perubahan Nama
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Data Koneksi LAN & Jam Server (Yang sebelumnya di headbar) */}
+                    <div className="p-6 md:p-8 bg-white/60 border border-white/50 rounded-3xl shadow-sm space-y-6">
+                      <div className="flex items-center gap-2">
+                        <Wifi className="w-5 h-5 text-emerald-600" />
+                        <h4 className="text-lg font-bold text-slate-800">
+                          {isEn ? 'Active Network & System Parameters' : 'Parameter Jaringan LAN & Waktu Server'}
+                        </h4>
+                      </div>
+                      <p className="text-xs text-slate-500 -mt-3">
+                        {isEn 
+                          ? 'Real-time parameters previously shown in header bar, now consolidated here for clean monitoring.'
+                          : 'Parameter real-time yang sebelumnya berada di bilah header, kini disatukan rapi di sini agar bilah atas tetap bersih.'
+                        }
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Parameter 1: Alamat IP LAN */}
+                        <div className="p-4 rounded-2xl bg-white/80 border border-slate-200/60 shadow-xs flex flex-col justify-between">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Alamat IP LAN Server</span>
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xl font-bold font-mono text-emerald-700">{serverIp}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(serverIp);
+                                setCopiedUrl(true);
+                                setTimeout(() => setCopiedUrl(false), 2000);
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                              title="Salin IP"
+                            >
+                              {copiedUrl ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          <span className="text-[10px] text-slate-500 mt-2 block">Binding aktif untuk komputer peserta</span>
+                        </div>
+
+                        {/* Parameter 2: Port & Protokol */}
+                        <div className="p-4 rounded-2xl bg-white/80 border border-slate-200/60 shadow-xs flex flex-col justify-between">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Port Listening CBT</span>
+                            <Server className="w-4 h-4 text-teal-600" />
+                          </div>
+                          <div>
+                            <span className="text-xl font-bold font-mono text-slate-800">:{serverPort}</span>
+                            <span className="ml-2 text-xs font-semibold text-slate-400 font-mono">(HTTP/REST)</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 mt-2 block">Port API Express.js & WebSocket</span>
+                        </div>
+
+                        {/* Parameter 3: Waktu Server Live */}
+                        <div className="p-4 rounded-2xl bg-white/80 border border-slate-200/60 shadow-xs flex flex-col justify-between">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Jam Sistem Real-Time</span>
+                            <Clock className="w-4 h-4 text-slate-400" />
+                          </div>
+                          <div>
+                            <span className="text-xl font-bold font-mono text-slate-800">
+                              {currentTime.toLocaleTimeString(isEn ? 'en-US' : 'id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 mt-2 block">
+                            {currentTime.toLocaleDateString(isEn ? 'en-US' : 'id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* URL Akses Peserta Banner */}
+                      <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Tautan Masuk Ujian Peserta:</span>
+                          <p className="text-sm font-mono font-bold text-emerald-900 break-all">
+                            http://{serverIp}:{serverPort}/student/login
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`http://${serverIp}:${serverPort}/student/login`);
+                              setCopiedUrl(true);
+                              setTimeout(() => setCopiedUrl(false), 2000);
+                            }}
+                            className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                            {copiedUrl ? 'Tersalin' : 'Salin URL Ujian'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 3: Pintasan Pengaturan Terkait */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('server')}
+                        className="p-5 rounded-2xl bg-white/60 hover:bg-white border border-white/60 text-left transition-all shadow-xs cursor-pointer group"
+                      >
+                        <Server className="w-5 h-5 text-teal-600 mb-2 group-hover:scale-110 transition-transform" />
+                        <h5 className="font-bold text-sm text-slate-800">Sistem & Jaringan</h5>
+                        <p className="text-xs text-slate-500 mt-1">Konfigurasi adapter LAN, mode offline, dan ping server.</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('ui')}
+                        className="p-5 rounded-2xl bg-white/60 hover:bg-white border border-white/60 text-left transition-all shadow-xs cursor-pointer group"
+                      >
+                        <Palette className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
+                        <h5 className="font-bold text-sm text-slate-800">Tampilan & Tema Layar</h5>
+                        <p className="text-xs text-slate-500 mt-1">Ganti tema Eye-Care (Terang, Sepia, Gelap) & bahasa.</p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('security')}
+                        className="p-5 rounded-2xl bg-white/60 hover:bg-white border border-white/60 text-left transition-all shadow-xs cursor-pointer group"
+                      >
+                        <Shield className="w-5 h-5 text-indigo-600 mb-2 group-hover:scale-110 transition-transform" />
+                        <h5 className="font-bold text-sm text-slate-800">Keamanan SEB</h5>
+                        <p className="text-xs text-slate-500 mt-1">Aturan Safe Exam Browser, reset sesi, dan password quit.</p>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* TAB 1: SISTEM & JARINGAN */}
                 {activeTab === 'server' && (
@@ -591,6 +839,31 @@ export const SettingsProctor: React.FC = () => {
                           </div>
                         </div>
                       )}
+
+                      {/* Cadangan Basis Data (Database Backup) */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white/60 border border-white/50 rounded-2xl gap-4 transition-all hover:bg-white/70">
+                        <div className="pr-4">
+                          <div className="flex items-center gap-2">
+                            <HardDrive className="w-5 h-5 text-emerald-600" />
+                            <p className="font-bold text-slate-800">Cadangan Basis Data (Database Backup)</p>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                              SQL Dump
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1 max-w-xl">
+                            Unduh salinan cadangan lengkap seluruh tabel database (bank soal, sesi ujian, hasil nilai, log jawaban) berformat file .sql untuk arsip atau migrasi server.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleDownloadBackup}
+                          disabled={downloadingBackup}
+                          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer shrink-0"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{downloadingBackup ? 'Mengunduh...' : 'Unduh Backup (.sql)'}</span>
+                        </button>
+                      </div>
 
                       {/* Simpan Pengaturan Button */}
                       <div className="pt-4 flex justify-end">

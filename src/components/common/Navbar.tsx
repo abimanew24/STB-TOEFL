@@ -25,9 +25,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full px-4 lg:px-8 py-4 flex items-center justify-between shadow-md transition-colors ${
+      className={`sticky top-0 z-40 w-full px-4 lg:px-8 py-3.5 flex items-center justify-between shadow-md transition-colors ${
         isEmerald
-          ? 'bg-[#00a67c] border-transparent text-white'
+          ? 'bg-teal-700 border-transparent text-white'
           : isLight
           ? 'bg-white/90 backdrop-blur-md border-b border-slate-200 text-slate-900 shadow-slate-200/50'
           : 'bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white shadow-slate-950/50'
@@ -35,15 +35,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     >
       <div className="flex items-center gap-3">
         <div
-          className={`flex items-center justify-center w-10 h-10 rounded-xl border ${
+          className={`flex items-center justify-center w-10 h-10 rounded-xl border overflow-hidden p-1 shrink-0 ${
             isEmerald
-              ? 'bg-white/10 text-white border-white/20'
+              ? 'bg-white text-white border-white/20 shadow-sm'
               : isLight
-              ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-              : 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30'
+              ? 'bg-white text-emerald-600 border-slate-200 shadow-sm'
+              : 'bg-white/10 text-indigo-400 border-indigo-500/30'
           }`}
         >
-          <ShieldCheck className="w-5 h-5" />
+          <img src="/8Tg9xjvN_400x400-removebg-preview.png" alt="Logo STIMIK" className="w-full h-full object-contain" />
         </div>
         <div>
           <h1 className={`text-lg font-bold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -51,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span
               className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded-md border tracking-wider ${
                 isEmerald
-                  ? 'bg-transparent text-white border-white/50'
+                  ? 'bg-white/10 text-white border-white/50'
                   : isLight
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               SEB Secured
             </span>
           </h1>
-          {subtitle && <p className={`text-xs ${isEmerald ? 'text-emerald-100' : isLight ? 'text-slate-500' : 'text-slate-400'}`}>{subtitle}</p>}
+          {subtitle && <p className={`text-xs ${isEmerald ? 'text-teal-100' : isLight ? 'text-slate-500' : 'text-slate-400'}`}>{subtitle}</p>}
         </div>
       </div>
 

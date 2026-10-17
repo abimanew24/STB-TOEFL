@@ -157,10 +157,6 @@ export const LoginProctor: React.FC = () => {
             </form>
 
             <div className="mt-8 flex flex-col items-center justify-center gap-2 text-xs font-medium text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <Server className="w-3.5 h-3.5 text-emerald-500 drop-shadow-sm" />
-                <span>Status Peladen: <span className="text-emerald-500">Terhubung</span></span>
-              </div>
               <div>&copy; 2026 SECURE-TOEFL CBT</div>
             </div>
           </div>

@@ -346,7 +346,7 @@ export const AudioManager: React.FC = () => {
           </div>
 
           {/* Audio List Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {loading ? (
               <div className="col-span-full py-16 flex flex-col items-center justify-center text-slate-400">
                 <RefreshCw className="w-8 h-8 animate-spin mb-4 text-teal-500" />
@@ -386,21 +386,29 @@ export const AudioManager: React.FC = () => {
                 return (
                   <div 
                     key={audio.filename} 
-                    className={`bg-white/50 backdrop-blur-md border border-white/70 rounded-2xl p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between group hover:bg-white/80 transition-all ${isPlaying ? 'ring-2 ring-teal-500/50 bg-white/70' : ''}`}
+                    className={`bg-white/50 backdrop-blur-md border rounded-2xl p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between group hover:bg-white/80 transition-all ${
+                      isPlaying 
+                        ? 'border-teal-500/80 shadow-[0_4px_25px_rgba(20,184,166,0.18)] bg-white/85' 
+                        : 'border-white/70'
+                    }`}
                   >
                     <div>
                       {/* Top Header & Play Button */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 overflow-hidden flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 pr-1">
                           <button 
                             onClick={() => togglePlay(audio.url)}
                             title={isPlaying ? 'Jeda' : 'Putar Audio'}
-                            className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer shadow-sm transition-all ${isPlaying ? 'bg-teal-600 text-white shadow-teal-500/40 scale-105' : 'bg-teal-50 text-teal-600 hover:bg-teal-100 hover:scale-105'}`}
+                            className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center cursor-pointer shadow-sm transition-all ${
+                              isPlaying 
+                                ? 'bg-teal-600 text-white shadow-teal-500/30 ring-4 ring-teal-500/20' 
+                                : 'bg-teal-50 text-teal-600 hover:bg-teal-100 hover:scale-105'
+                            }`}
                           >
-                            {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                            {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                           </button>
                           
-                          <div className="overflow-hidden flex-1">
+                          <div className="overflow-hidden flex-1 min-w-0">
                             <h4 
                               className="font-bold text-slate-800 truncate text-sm hover:text-teal-700 transition-colors cursor-pointer" 
                               title={audio.filename}
@@ -408,7 +416,7 @@ export const AudioManager: React.FC = () => {
                             >
                               {audio.filename}
                             </h4>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs font-semibold text-slate-400">{formatSize(audio.size)}</span>
                               <span className="text-[10px] text-slate-300">•</span>
                               {isUsed ? (
@@ -426,22 +434,24 @@ export const AudioManager: React.FC = () => {
                         </div>
 
                         {/* Set as Master Audio Button */}
-                        {(() => {
-                          const isMaster = activeMasterAudio === audio.url || activeMasterAudio === audio.filename || activeMasterAudio === `/static/audio/${audio.filename}`;
-                          return isMaster ? (
-                            <span className="shrink-0 text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
-                              <Check className="w-3 h-3" /> Master Aktif
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleSetAsMaster(audio.url)}
-                              className="shrink-0 text-[10px] font-bold bg-white text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
-                              title="Jadikan file ini sebagai Master Audio Section 1"
-                            >
-                              <Check className="w-3 h-3" /> Jadikan Master
-                            </button>
-                          );
-                        })()}
+                        <div className="shrink-0 flex items-center pr-1">
+                          {(() => {
+                            const isMaster = activeMasterAudio === audio.url || activeMasterAudio === audio.filename || activeMasterAudio === `/static/audio/${audio.filename}`;
+                            return isMaster ? (
+                              <span className="text-[10px] font-bold bg-emerald-600 text-white px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm whitespace-nowrap">
+                                <Check className="w-3 h-3" /> Master Aktif
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleSetAsMaster(audio.url)}
+                                className="text-[10px] font-bold bg-white text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+                                title="Jadikan file ini sebagai Master Audio Section 1"
+                              >
+                                <Check className="w-3 h-3" /> Jadikan Master
+                              </button>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
                     

@@ -727,10 +727,12 @@ export const QuestionBank: React.FC = () => {
                 <Check className="w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity stroke-[3]" />
               </div>
             </label>
-            <span className={`w-11 h-11 rounded-2xl font-black flex items-center justify-center text-base transition-colors ${
+            <span className={`w-11 h-11 rounded-2xl font-black flex items-center justify-center text-center text-base leading-none select-none transition-colors ${
               isSelected ? 'bg-rose-100 text-rose-700 font-black' : 'bg-emerald-50 text-emerald-600'
             }`}>
-              {index + 1}
+              <span className="flex items-center justify-center text-center leading-none select-none">
+                {index + 1}
+              </span>
             </span>
           </div>
 
@@ -795,16 +797,22 @@ export const QuestionBank: React.FC = () => {
                 return (
                   <div 
                     key={opt} 
-                    className={`relative p-4 rounded-[1rem] border-2 transition-all flex items-start gap-3 ${isCorrect ? 'bg-emerald-50 border-emerald-500' : 'bg-white/60 border-white/50'}`}
+                    className={`relative p-3.5 rounded-[1rem] border-2 transition-all flex items-center gap-3 ${isCorrect ? 'bg-emerald-50 border-emerald-500 shadow-xs' : 'bg-white/60 border-white/50'}`}
                   >
-                    <span className={`w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${isCorrect ? 'bg-emerald-500 text-slate-800' : 'bg-white/60 text-slate-500'}`}>
-                      {opt}
+                    <span className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-black leading-none select-none transition-all ${
+                      isCorrect 
+                        ? 'bg-emerald-500 text-white shadow-xs' 
+                        : 'bg-white/80 text-slate-600 border border-slate-200/80'
+                    }`}>
+                      <span className="flex items-center justify-center text-center leading-none select-none">
+                        {opt}
+                      </span>
                     </span>
-                    <span className={`font-medium text-sm pt-0.5 ${isCorrect ? 'text-emerald-900 font-bold' : 'text-slate-700'}`}>
+                    <span className={`font-medium text-sm flex-1 ${isCorrect ? 'text-emerald-900 font-bold' : 'text-slate-700'}`}>
                       {optionText}
                     </span>
                     {isCorrect && (
-                      <div className="absolute -top-3 -right-2 bg-emerald-500 text-slate-800 text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-1">
+                      <div className="absolute -top-3 -right-2 bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> Kunci Jawaban
                       </div>
                     )}
@@ -849,9 +857,9 @@ export const QuestionBank: React.FC = () => {
               <div className="flex items-center gap-3 flex-wrap">
                 <button 
                   onClick={handleDownloadTemplate} 
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#ece8fd] hover:bg-[#e0d9fc] text-[#5540bf] font-bold text-sm transition-all shadow-sm border border-[#dcd4fa] cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/80 hover:bg-white text-slate-700 font-bold text-sm transition-all shadow-sm border border-white/70 hover:shadow-md cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4 text-slate-500" />
                   <span>Template Excel</span>
                 </button>
 
@@ -865,9 +873,9 @@ export const QuestionBank: React.FC = () => {
 
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 font-bold text-sm transition-all shadow-sm border border-white cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/80 hover:bg-white text-slate-700 font-bold text-sm transition-all shadow-sm border border-white/70 hover:shadow-md cursor-pointer"
                 >
-                  <Upload className="w-4 h-4" />
+                  <Upload className="w-4 h-4 text-slate-500" />
                   <span>Import Soal</span>
                 </button>
               </div>
@@ -875,26 +883,24 @@ export const QuestionBank: React.FC = () => {
               {/* Right Action Buttons */}
               <div className="flex items-center gap-3 flex-wrap">
                 <button 
-                  onClick={() => { setEditQId(null); setPertanyaan(''); setPilihanA(''); setPilihanB(''); setPilihanC(''); setPilihanD(''); setCreateQModalOpen(true); }} 
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#058252] hover:bg-[#046e45] text-white font-bold text-sm transition-all shadow-sm shadow-emerald-700/20 cursor-pointer"
+                  onClick={() => { setEditQId(null); setPertanyaan(""); setPilihanA(""); setPilihanB(""); setPilihanC(""); setPilihanD(""); setCreateQModalOpen(true); }} 
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/80 hover:bg-white text-slate-700 font-bold text-sm transition-all shadow-sm border border-white/70 hover:shadow-md cursor-pointer"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4 text-emerald-600" />
                   <span>Tambah Butir Soal</span>
                 </button>
 
                 <button 
-                  onClick={() => navigate('/proctor/audio')}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#e6f7ef] hover:bg-[#d5f2e3] text-[#00663f] font-bold text-sm transition-all shadow-sm border border-[#bce8d0] cursor-pointer"
+                  onClick={() => navigate("/proctor/audio")}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/80 hover:bg-white text-slate-700 font-bold text-sm transition-all shadow-sm border border-white/70 hover:shadow-md cursor-pointer"
                   title="Buka Media Library untuk mengelola berkas audio"
                 >
-                  <Music className="w-4 h-4 text-[#00875a]" />
+                  <Music className="w-4 h-4 text-teal-600" />
                   <span>Media Library</span>
                 </button>
               </div>
             </div>
           </div>
-
-
 
           {/* Content Area */}
           <div className="flex-1 flex flex-col min-h-0">

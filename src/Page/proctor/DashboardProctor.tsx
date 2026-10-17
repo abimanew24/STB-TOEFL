@@ -5,19 +5,23 @@ import { Users, Key, Activity, ShieldCheck } from 'lucide-react';
 import { AreaChart, Area, Tooltip, ResponsiveContainer } from 'recharts';
 import { SidebarProctor } from '../../components/common/SidebarProctor';
 import { ProctorHeader } from '../../components/proctor/ProctorHeader';
+import { CustomDropdown } from '../../components/common/CustomDropdown';
 import api from '../../services/api';
 
 export const DashboardProctor: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [selectedSesiId, setSelectedSesiId] = useState<string>('');
   const [stats, setStats] = useState<any>({
     totalConnected: 0,
     activeSession: '-',
+    sessionToken: '-',
     currentSection: '-',
     sebIntegrity: '100% Safe',
     averageScore: 0,
     totalAnomalies: 0,
-    liveParticipants: []
+    liveParticipants: [],
+    allSessions: []
   });
 
   const mockChartData = [
@@ -35,11 +39,16 @@ export const DashboardProctor: React.FC = () => {
   const proctorName = proctorInfo?.nama_lengkap || 'Pengawas';
   const firstName = proctorName.split(' ')[0];
 
-  const fetchData = async () => {
+  const fetchData = async (sesiId?: string) => {
     setLoading(true);
     try {
-      const res = await api.get('/dashboard/stats');
+      const activeId = sesiId !== undefined ? sesiId : selectedSesiId;
+      const url = activeId ? `/dashboard/stats?sesi_id=${activeId}` : '/dashboard/stats';
+      const res = await api.get(url);
       setStats(res.data);
+      if (!selectedSesiId && res.data.targetSessionId) {
+        setSelectedSesiId(String(res.data.targetSessionId));
+      }
     } catch (err) {
       console.error('[PROCTOR DASHBOARD ERROR]', err);
     } finally {
@@ -50,9 +59,9 @@ export const DashboardProctor: React.FC = () => {
   useEffect(() => {
     fetchData();
     // Polling setiap 10 detik agar terasa "live"
-    const intervalId = setInterval(fetchData, 10000);
+    const intervalId = setInterval(() => fetchData(), 10000);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [selectedSesiId]);
 
   return (
     <div className="h-screen overflow-hidden bg-[url('/bg-proctor.jpg')] bg-cover bg-center p-4 md:p-6 font-sans text-slate-800 flex gap-6 box-border selection:bg-teal-500/20 relative">
@@ -68,7 +77,7 @@ export const DashboardProctor: React.FC = () => {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="flex-1 flex flex-col gap-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-6 pr-2 md:pr-4"
+          className="flex-1 flex flex-col gap-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-6"
         >
           
           {/* Top Metric Cards Grid */}
@@ -97,14 +106,24 @@ export const DashboardProctor: React.FC = () => {
             {/* Card 2: Active Token */}
             <div className="bg-white/50 backdrop-blur-md border border-white/70 rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between min-h-[140px]">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium text-sm">Active Session</span>
+                <span className="text-slate-500 font-medium text-sm">Token {stats.activeSession || 'Sesi'}</span>
                 <div className="w-10 h-10 rounded-full bg-white/60 flex items-center justify-center text-emerald-600 shadow-sm border border-white/50">
                   <Key className="w-5 h-5" />
                 </div>
               </div>
               <div className="flex items-center justify-between mt-4">
-                <span className="text-3xl font-semibold tracking-tight truncate max-w-[150px]">{stats.activeSession}</span>
-                <button className="bg-white/60 hover:bg-white px-4 py-1.5 rounded-full text-xs font-bold text-slate-700 transition-colors shadow-sm border border-white">Copy</button>
+                <span className="text-3xl font-black tracking-widest text-teal-800">{stats.sessionToken || '-'}</span>
+                <button 
+                  onClick={() => {
+                    if (stats.sessionToken && stats.sessionToken !== '-') {
+                      navigator.clipboard.writeText(stats.sessionToken);
+                      alert(`Token ${stats.sessionToken} disalin!`);
+                    }
+                  }}
+                  className="bg-white/80 hover:bg-white px-4 py-1.5 rounded-full text-xs font-bold text-slate-700 transition-colors shadow-sm border border-white cursor-pointer"
+                >
+                  Copy
+                </button>
               </div>
             </div>
 
@@ -148,7 +167,21 @@ export const DashboardProctor: React.FC = () => {
                     <div className="w-1.5 h-1.5 rounded-full bg-teal-500"></div> On track
                   </span>
                 </div>
-                <div className="text-sm font-bold text-slate-500 cursor-pointer hover:text-slate-800 bg-white/50 px-3 py-1.5 rounded-full border border-white/50">Gelombang 1 ▾</div>
+                <CustomDropdown
+                  value={selectedSesiId}
+                  onChange={(val) => {
+                    const newId = String(val);
+                    setSelectedSesiId(newId);
+                    fetchData(newId);
+                  }}
+                  options={stats.allSessions?.map((s: any) => ({
+                    value: String(s.id),
+                    label: s.nama_sesi,
+                    badge: s.token,
+                    isLive: Boolean(s.status_aktif)
+                  })) || []}
+                  placeholder="Pilih Sesi..."
+                />
               </div>
 
               <div className="flex gap-12 z-10">
@@ -188,16 +221,20 @@ export const DashboardProctor: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Actions / Safety Card */}
-            <div className="bg-gradient-to-br from-teal-500 to-emerald-600 rounded-[2rem] p-8 shadow-lg flex flex-col items-center justify-center text-center gap-4 text-white relative overflow-hidden">
+            {/* Quick Actions / Session Management Card */}
+            <div className="bg-gradient-to-br from-teal-600 to-emerald-600 rounded-[2rem] p-8 shadow-lg flex flex-col items-center justify-center text-center gap-3 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full blur-xl -ml-8 -mb-8"></div>
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-2 border border-white/30 shadow-inner z-10">
-                <ShieldCheck className="w-8 h-8" />
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shadow-inner z-10">
+                <ShieldCheck className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-bold z-10">Setup training for next week</h3>
-              <button className="bg-white text-teal-700 px-6 py-3 rounded-full font-bold text-sm hover:bg-slate-50 transition-colors w-full shadow-md z-10 mt-2">
-                Go to training center
+              <h3 className="text-lg font-bold z-10 leading-snug">Manajemen Sesi & Token</h3>
+              <p className="text-xs text-teal-100 z-10">Rilis token baru atau aktifkan sesi ujian berikutnya.</p>
+              <button 
+                onClick={() => navigate('/proctor/tokens')}
+                className="bg-white text-teal-700 hover:bg-slate-50 px-5 py-2.5 rounded-full font-bold text-sm transition-all w-full shadow-md z-10 mt-1 cursor-pointer"
+              >
+                Kelola Sesi & Token
               </button>
             </div>
           </div>
@@ -205,8 +242,19 @@ export const DashboardProctor: React.FC = () => {
           {/* Data Table Section */}
           <div className="bg-white/50 backdrop-blur-md border border-white/70 rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-1">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-slate-800">Live Participants</h3>
-              <span className="text-sm font-bold text-slate-600 bg-white/60 border border-white/50 px-4 py-1.5 rounded-full cursor-pointer hover:bg-white transition-colors shadow-sm">View All</span>
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold text-slate-800">Live Participants</h3>
+                <span className="text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-100 flex items-center gap-1.5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                  <span>{stats.activeSession}</span>
+                </span>
+              </div>
+              <button 
+                onClick={() => navigate('/proctor/peserta')}
+                className="text-xs font-bold text-slate-600 bg-white/60 border border-white/50 px-4 py-1.5 rounded-full cursor-pointer hover:bg-white transition-colors shadow-sm"
+              >
+                Lihat Semua Peserta
+              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -247,8 +295,10 @@ export const DashboardProctor: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400 font-medium bg-white/20 rounded-xl mt-4 block w-full">
-                        No live participants currently connected.
+                      <td colSpan={5} className="py-8 text-center text-slate-400 font-medium">
+                        <div className="bg-white/20 rounded-xl py-6 px-4 border border-white/30 max-w-md mx-auto">
+                          No live participants currently connected.
+                        </div>
                       </td>
                     </tr>
                   )}

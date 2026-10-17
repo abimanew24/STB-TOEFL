@@ -147,8 +147,8 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
             !allowReplay && hasPlayed
               ? 'bg-slate-300 text-white cursor-not-allowed'
               : isPlaying
-              ? 'bg-[#00a67c] text-white animate-pulse shadow-md cursor-not-allowed'
-              : 'bg-[#00a67c] hover:bg-[#008f6b] text-white shadow-md cursor-pointer'
+              ? 'bg-teal-600 text-white animate-pulse shadow-md cursor-not-allowed'
+              : 'bg-teal-600 hover:bg-teal-700 text-white shadow-md cursor-pointer'
           }`}
         >
           {!allowReplay && hasPlayed ? (
@@ -168,15 +168,15 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
           </div>
           <p className={`text-xs sm:text-sm mt-0.5 flex items-center gap-2 ${subThemeClass}`}>
             Status: {!allowReplay && (hasPlayed || isAlreadyPlayed) ? 'Selesai diputar (Hanya 1x Putar)' : isPlaying ? `Sedang memutar audio soal ${questionNumber ? `no. ${questionNumber}` : ''}` : allowReplay ? 'Siap diputar (Boleh diulang)' : 'Siap diputar (1x Play)'}
-            <span className="font-mono text-emerald-600 font-bold">
+            <span className="font-mono text-teal-700 font-bold">
                • {formatTime(currentTime)} / {formatTime(duration)}
             </span>
             {isPlaying && (
               <span className="flex gap-0.5 items-end h-3 ml-2">
-                <span className="w-1 bg-[#00a67c] h-1 animate-[bounce_1s_infinite]"></span>
-                <span className="w-1 bg-[#00a67c] h-3 animate-[bounce_1.2s_infinite]"></span>
-                <span className="w-1 bg-[#00a67c] h-2 animate-[bounce_0.8s_infinite]"></span>
-                <span className="w-1 bg-[#00a67c] h-3 animate-[bounce_1.5s_infinite]"></span>
+                <span className="w-1 bg-teal-600 h-1 animate-[bounce_1s_infinite]"></span>
+                <span className="w-1 bg-teal-600 h-3 animate-[bounce_1.2s_infinite]"></span>
+                <span className="w-1 bg-teal-600 h-2 animate-[bounce_0.8s_infinite]"></span>
+                <span className="w-1 bg-teal-600 h-3 animate-[bounce_1.5s_infinite]"></span>
               </span>
             )}
           </p>
@@ -193,7 +193,7 @@ export const StrictAudioPlayer: React.FC<StrictAudioPlayerProps> = ({
           step="0.05" 
           value={volume} 
           onChange={handleVolumeChange} 
-          className="w-28 sm:w-32 accent-[#00a67c] cursor-pointer"
+          className="w-28 sm:w-32 accent-teal-600 cursor-pointer"
         />
       </div>
 

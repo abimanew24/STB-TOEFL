@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { removeActiveSession, getAllActiveSessions } from '../services/activeSessionManager.js';
+import pool from '../database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -294,3 +295,57 @@ export async function downloadSebConfigFile(req, res) {
     return res.status(500).json({ error: err.message });
   }
 }
+
+/**
+ * GET /api/system/backup-db
+ * Menghasilkan SQL dump lengkap dari semua tabel database untuk backup mandiri
+ */
+export async function backupDatabase(req, res) {
+  try {
+    const [tables] = await pool.query('SHOW TABLES');
+    let sqlDump = `-- =====================================================\n`;
+    sqlDump += `-- SECURE-TOEFL CBT Database Backup\n`;
+    sqlDump += `-- Generated: ${new Date().toISOString()}\n`;
+    sqlDump += `-- =====================================================\n\n`;
+    sqlDump += `SET FOREIGN_KEY_CHECKS = 0;\n\n`;
+
+    for (const t of tables) {
+      const tableName = Object.values(t)[0];
+      const [createTableRows] = await pool.query(`SHOW CREATE TABLE \`${tableName}\``);
+      const createTableSql = createTableRows[0]['Create Table'];
+      
+      sqlDump += `-- -----------------------------------------------------\n`;
+      sqlDump += `-- Table structure for table \`${tableName}\`\n`;
+      sqlDump += `-- -----------------------------------------------------\n`;
+      sqlDump += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
+      sqlDump += `${createTableSql};\n\n`;
+
+      const [rows] = await pool.query(`SELECT * FROM \`${tableName}\``);
+      if (rows.length > 0) {
+        sqlDump += `-- Dumping data for table \`${tableName}\`\n`;
+        for (const row of rows) {
+          const keys = Object.keys(row).map(k => `\`${k}\``).join(', ');
+          const values = Object.values(row).map(val => {
+            if (val === null) return 'NULL';
+            if (typeof val === 'number') return val;
+            if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+            return `'${String(val).replace(/'/g, "''").replace(/\\/g, '\\\\')}'`;
+          }).join(', ');
+          sqlDump += `INSERT INTO \`${tableName}\` (${keys}) VALUES (${values});\n`;
+        }
+        sqlDump += `\n`;
+      }
+    }
+
+    sqlDump += `SET FOREIGN_KEY_CHECKS = 1;\n`;
+
+    const filename = `stbtoefl_backup_${new Date().toISOString().slice(0, 10)}.sql`;
+    res.setHeader('Content-Type', 'application/sql; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(sqlDump);
+  } catch (err) {
+    console.error('[BACKUP DB ERROR]', err);
+    return res.status(500).json({ error: 'Gagal membuat backup database', message: err.message });
+  }
+}
+

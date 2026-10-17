@@ -32,7 +32,7 @@ export const SplitReadingView: React.FC<SplitReadingViewProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full flex-1">
       {/* Panel Kiri: Teks Wacana Bacaan */}
       <div className={`lg:col-span-6 rounded-xl lg:rounded-2xl p-6 sm:p-8 flex flex-col shadow-xs overflow-hidden transition-all border ${themeClass}`}>
-        <div className="flex items-center gap-2 pb-4 mb-4 border-b border-slate-100/50 text-[#00a67c] font-bold text-sm sm:text-base">
+        <div className="flex items-center gap-2 pb-4 mb-4 border-b border-slate-100/50 text-teal-700 font-bold text-sm sm:text-base">
           <BookOpen className="w-5 h-5" />
           <span>{passageTitle || 'Reading Passage'}</span>
         </div>

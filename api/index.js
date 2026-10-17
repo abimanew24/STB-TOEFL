@@ -12,10 +12,10 @@ import { verifyStudentToken } from './middleware/authStudent.js';
 
 // Import Controller Logika Bisnis
 import { loginStudent, loginProctor } from './controllers/authController.js';
-import { getSessions, createSession, toggleSessionStatus, broadcastTokenEmail, getDashboardStats } from './controllers/sessionController.js';
+import { getSessions, createSession, toggleSessionStatus, deleteSession, broadcastTokenEmail, getDashboardStats } from './controllers/sessionController.js';
 import { getQuestions, createQuestion, getPassages, createPassage, handleAudioUpload, getAudioFiles, deleteAudioFile, clearAllAudioFiles, generateTtsAudio, setMasterAudio, updateQuestion, deleteQuestion, batchDeleteQuestions, updatePassage, deletePassage } from './controllers/questionController.js';
 import { prefetchQuestions, syncAnswers, submitExam } from './controllers/examController.js';
-import { getStudentScore, getScoreRecap } from './controllers/scoringController.js';
+import { getStudentScore, getScoreRecap, deleteScoreRecord } from './controllers/scoringController.js';
 import { 
   getSystemSettings, 
   saveSystemSettings, 
@@ -23,7 +23,8 @@ import {
   pingSystem, 
   resetStudentSession, 
   getActiveSessionsController, 
-  downloadSebConfigFile 
+  downloadSebConfigFile,
+  backupDatabase 
 } from './controllers/systemController.js';
 
 import pool from './database.js';
@@ -57,32 +58,71 @@ app.get('/api/dashboard/stats', verifyProctorToken, getDashboardStats);
 app.get('/api/sessions', verifyProctorToken, getSessions);
 app.post('/api/sessions', verifyProctorToken, createSession);
 app.patch('/api/sessions/:id/status', verifyProctorToken, toggleSessionStatus);
+app.delete('/api/sessions/:id', verifyProctorToken, deleteSession);
 app.post('/api/sessions/:id/broadcast-email', verifyProctorToken, broadcastTokenEmail);
 app.get('/api/users', verifyProctorToken, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM pengguna WHERE peran = "mahasiswa" ORDER BY id DESC');
+    const { sesi_id } = req.query;
+    let query = `
+      SELECT p.*, COALESCE(s.nama_sesi, 'Sesi 1') as nama_sesi, s.token as sesi_token 
+      FROM pengguna p 
+      LEFT JOIN sesi_ujian s ON s.id = p.sesi_id 
+      WHERE p.peran = "mahasiswa"
+    `;
+    const params = [];
+    if (sesi_id && sesi_id !== 'all' && sesi_id !== 'Semua') {
+      const sId = parseInt(sesi_id, 10);
+      if (sId === 1) {
+        query += ' AND (p.sesi_id = 1 OR p.sesi_id IS NULL)';
+      } else {
+        query += ' AND p.sesi_id = ?';
+        params.push(sId);
+      }
+    }
+    query += ' ORDER BY p.id DESC';
+    const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
+
 app.post('/api/users', verifyProctorToken, async (req, res) => {
   try {
-    const { nomor_induk, nama_lengkap, email, kata_sandi } = req.body;
+    const { nomor_induk, nama_lengkap, email, kata_sandi, sesi_id } = req.body;
     await pool.query(
-      `INSERT INTO pengguna (nomor_induk, nama_lengkap, email, kata_sandi, peran) VALUES (?, ?, ?, ?, 'mahasiswa')`,
-      [nomor_induk, nama_lengkap, email, kata_sandi || '123456']
+      `INSERT INTO pengguna (nomor_induk, nama_lengkap, email, kata_sandi, peran, sesi_id) VALUES (?, ?, ?, ?, 'mahasiswa', ?)`,
+      [nomor_induk, nama_lengkap, email, kata_sandi || '123456', sesi_id ? parseInt(sesi_id, 10) : null]
     );
     res.json({ message: 'Peserta berhasil ditambahkan' });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
+
+app.put('/api/users/:id', verifyProctorToken, async (req, res) => {
+  try {
+    const { nomor_induk, nama_lengkap, email, sesi_id } = req.body;
+    await pool.query(
+      `UPDATE pengguna SET nomor_induk = ?, nama_lengkap = ?, email = ?, sesi_id = ? WHERE id = ? AND peran = 'mahasiswa'`,
+      [nomor_induk, nama_lengkap, email, sesi_id ? parseInt(sesi_id, 10) : null, req.params.id]
+    );
+    res.json({ message: 'Data peserta berhasil diperbarui' });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 app.post('/api/users/import', verifyProctorToken, async (req, res) => {
   try {
-    const { users } = req.body;
+    const { users, sesi_id } = req.body;
     let count = 0;
+    const defaultSesi = sesi_id ? parseInt(sesi_id, 10) : null;
     for (const u of users) {
       try {
+        const rowSesi = u.sesi_id ? parseInt(u.sesi_id, 10) : defaultSesi;
         await pool.query(
-          `INSERT INTO pengguna (nomor_induk, nama_lengkap, email, kata_sandi, peran) VALUES (?, ?, ?, ?, 'mahasiswa') ON DUPLICATE KEY UPDATE nama_lengkap=VALUES(nama_lengkap), email=VALUES(email)`,
-          [u.nim, u.name, u.email, '123456']
+          `INSERT INTO pengguna (nomor_induk, nama_lengkap, email, kata_sandi, peran, sesi_id) 
+           VALUES (?, ?, ?, ?, 'mahasiswa', ?) 
+           ON DUPLICATE KEY UPDATE 
+             nama_lengkap = VALUES(nama_lengkap), 
+             email = VALUES(email),
+             sesi_id = IFNULL(VALUES(sesi_id), sesi_id)`,
+          [u.nim, u.name, u.email, '123456', rowSesi]
         );
         count++;
       } catch (e) { /* ignore single row errors */ }
@@ -90,6 +130,7 @@ app.post('/api/users/import', verifyProctorToken, async (req, res) => {
     res.json({ message: `${count} Peserta berhasil diimport` });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
+
 app.delete('/api/users/:id', verifyProctorToken, async (req, res) => {
   try {
     await pool.query('DELETE FROM pengguna WHERE id = ?', [req.params.id]);
@@ -159,6 +200,7 @@ app.post('/api/exam/submit', verifySebHeader, verifyStudentToken, submitExam);
 // ============================================================
 app.get('/api/scores/student', verifyStudentToken, getStudentScore);
 app.get('/api/scores/recap', verifyProctorToken, getScoreRecap);
+app.delete('/api/scores/:id', verifyProctorToken, deleteScoreRecord);
 
 // ============================================================
 // 6. ROUTE PENGATURAN SISTEM & JARINGAN (PORTAL PENGAWAS)
@@ -170,6 +212,7 @@ app.get('/api/system/ping', pingSystem);
 app.post('/api/system/reset-session', verifyProctorToken, resetStudentSession);
 app.get('/api/system/active-sessions', verifyProctorToken, getActiveSessionsController);
 app.get('/api/system/download-seb-config', verifyProctorToken, downloadSebConfigFile);
+app.get('/api/system/backup-db', verifyProctorToken, backupDatabase);
 
 // Health Check
 app.get('/api/health', (req, res) => {

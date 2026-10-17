@@ -13,6 +13,7 @@ export interface Translations {
 export const translations: Translations = {
   // Navigation / Tabs
   navSettings: { id: 'Pengaturan', en: 'Settings' },
+  tabProfile: { id: 'Profil & Status', en: 'Profile & Status' },
   tabServer: { id: 'Sistem & Jaringan', en: 'System & Network' },
   tabSecurity: { id: 'Keamanan (SEB)', en: 'Security (SEB)' },
   tabAudio: { id: 'Media & Audio', en: 'Media & Audio' },
@@ -167,10 +168,10 @@ export const translations: Translations = {
     en: '“The Hawaiian language is a Polynesian language that takes its name from Hawaiʻi, the largest island in the tropical North Pacific archipelago where it developed...”' 
   },
 
-  themeSectionTitle: { id: 'Tema Kontras Layar Ujian (Eye-Care)', en: 'Exam Screen Contrast Theme (Eye-Care)' },
+  themeSectionTitle: { id: 'Tema Kontras Layar Pengawas & Ujian (Eye-Care)', en: 'Proctor & Exam Eye-Care Contrast Theme' },
   themeSectionDesc: { 
-    id: 'Pilih skema warna latar ruang ujian untuk kenyamanan penglihatan peserta selama 115 menit sesi tes.', 
-    en: 'Choose exam background color scheme for visual comfort throughout the 115-minute test session.' 
+    id: 'Pilih skema warna kontras untuk kenyamanan mata pada seluruh modul/halaman pengawas maupun layar ujian peserta.', 
+    en: 'Choose eye-care contrast color scheme applied across all proctor modules and student exam screens.' 
   },
   themeLightTitle: { id: 'Terang Bersih (Light)', en: 'Clean Light' },
   themeLightDesc: { id: 'Standar laboratorium terang', en: 'Standard bright lab monitor' },
@@ -287,10 +288,10 @@ export const translations: Translations = {
   listenAudioNarration: { id: 'Dengarkan narator pada audio...', en: 'Listen to the narrator audio...' },
   audioCheckTitle: { id: 'Pemeriksaan Audio', en: 'Audio Check' },
   audioCheckDesc: { 
-    id: 'Pasang headphone Anda dan pastikan suara narator terdengar jelas.', 
-    en: 'Wear your headphones and ensure narrator audio is clearly audible.' 
+    id: 'Pasang headphone Anda dan pastikan suara audio uji coba terdengar jelas.', 
+    en: 'Wear your headphones and ensure test audio is clearly audible.' 
   },
-  playAudioBtn: { id: 'Putar Suara Percakapan', en: 'Play Conversation Audio' },
+  playAudioBtn: { id: 'Putar Sampel Suara', en: 'Play Sample Audio' },
   audioTestedSuccess: { id: 'Suara Terdengar Jelas, Lanjutkan', en: 'Audio is Clear, Continue' },
   audioTrouble: { id: 'Suara Tidak Terdengar? Lapor Pengawas', en: 'Cannot Hear? Report to Proctor' },
   loginStudentTitle: { id: 'Portal Masuk Peserta Ujian', en: 'Student Exam Portal Login' },
